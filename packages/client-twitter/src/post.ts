@@ -464,20 +464,6 @@ export class TwitterPostClient {
             return null;
         }
         try {
-            const imageDescriptions = [];
-
-                elizaLogger.log(
-                    "Processing TEST images"
-                );
-                const description = await this.runtime
-                    .getService<IImageDescriptionService>(
-                        ServiceType.IMAGE_DESCRIPTION
-                    )
-                    .describeImage("https://picsum.photos/200/300");
-                imageDescriptions.push(description);
-                elizaLogger.log(
-                    "Processing TEST images"+imageDescriptions
-                );
             this.isProcessing = true;
             this.lastProcessTime = Date.now();
 
