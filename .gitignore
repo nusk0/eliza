@@ -54,3 +54,4 @@ coverage
 .eslintcache
 
 agent/content
+.env.backup
