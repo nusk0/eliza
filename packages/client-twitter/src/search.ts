@@ -14,7 +14,9 @@ import {
 import { stringToUuid } from "@elizaos/core";
 import { ClientBase } from "./base";
 import { buildConversationThread, sendTweet, wait } from "./utils.ts";
-
+//{{bio}}
+//{{lore}}
+//{{topics}}
 const twitterSearchTemplate =
     `{{timeline}}
 
@@ -24,9 +26,7 @@ Recent interactions between {{agentName}} and other users:
 {{recentPostInteractions}}
 
 About {{agentName}} (@{{twitterUserName}}):
-{{bio}}
-{{lore}}
-{{topics}}
+{{interact}}
 
 {{postDirections}}
 

@@ -16,15 +16,18 @@ import { IImageDescriptionService, ServiceType } from "@elizaos/core";
 import { buildConversationThread } from "./utils.ts";
 import { twitterMessageHandlerTemplate } from "./interactions.ts";
 import { DEFAULT_MAX_TWEET_LENGTH } from "./environment.ts";
+// {{knowledge}}
+// {{bio}}
+// {{lore}}
+// {{topics}}
+
 
 const twitterPostTemplate = `
 # Areas of Expertise
-{{knowledge}}
+{{interact}}
 
 # About {{agentName}} (@{{twitterUserName}}):
-{{bio}}
-{{lore}}
-{{topics}}
+
 
 {{providers}}
 
@@ -36,23 +39,24 @@ const twitterPostTemplate = `
 Write a post that is {{adjective}} about {{topic}} (without mentioning {{topic}} directly), from the perspective of {{agentName}}. Do not add commentary or acknowledge this request, just write the post.
 Your response should be 1, 2, or 3 sentences (choose the length at random).
 Your response should not contain any questions. Brief, concise statements only. The total character count MUST be less than {{maxTweetLength}}. No emojis. Use \\n\\n (double spaces) between statements if there are multiple statements in your response.`;
-
 export const twitterActionTemplate =
+//{{postDirections}}
     `
 # INSTRUCTIONS: Determine actions for {{agentName}} (@{{twitterUserName}}) based on:
-{{bio}}
-{{postDirections}}
+Interests & Topics:
+{{interact}}
 
 Guidelines:
 - Highly selective engagement
 - Direct mentions are priority
-- Skip: low-effort content, off-topic, repetitive
+- Skip: anything that isn't related to arcane or the league of legend universe, low-effort content, off-topic, repetitive
+- Only interact with post that are related to the league of legend or arcane universe
 
 Actions (respond only with tags):
-[LIKE] - Resonates with interests (9.5/10)
-[RETWEET] - Perfect character alignment (9/10)
-[QUOTE] - Can add unique value (8/10)
-[REPLY] - Memetic opportunity (9/10)
+[LIKE] - Resonates with interests (10/10)
+[RETWEET] - Has to be related to the arcane or league of legend universe (10/10)
+[QUOTE] - Can add unique value (10/10)
+[REPLY] - Something related to jinx and the arcane universe (10/10)
 
 Tweet:
 {{currentTweet}}
@@ -171,21 +175,28 @@ export class TwitterPostClient {
         if (postImmediately) {
             await this.generateNewTweet();
         }
-        generateNewTweetLoop();
+        //generateNewTweetLoop();
 
         // Add check for ENABLE_ACTION_PROCESSING before starting the loop
-        const enableActionProcessing =
-            this.runtime.getSetting("ENABLE_ACTION_PROCESSING") ?? false;
-
-        if (enableActionProcessing) {
-            processActionsLoop().catch((error) => {
-                elizaLogger.error(
-                    "Fatal error in process actions loop:",
-                    error
-                );
-            });
-        } else {
-            elizaLogger.log("Action processing loop disabled by configuration");
+        if (
+            this.runtime.getSetting("ENABLE_ACTION_PROCESSING") != null &&
+            this.runtime.getSetting("ENABLE_ACTION_PROCESSING") != ""
+        ) {
+            const enableActionProcessing =
+                this.runtime.getSetting("ENABLE_ACTION_PROCESSING");
+            if (
+                enableActionProcessing === "true" ||
+                enableActionProcessing === "TRUE"
+            ) {
+                processActionsLoop().catch((error) => {
+                    elizaLogger.error(
+                        "Fatal error in process actions loop:",
+                        error
+                    );
+                });
+            } else {
+                elizaLogger.log("Action processing loop disabled by configuration");
+            }
         }
         generateNewTweetLoop();
     }
@@ -452,12 +463,25 @@ export class TwitterPostClient {
             elizaLogger.log("Already processing tweet actions, skipping");
             return null;
         }
-
         try {
+            const imageDescriptions = [];
+
+                elizaLogger.log(
+                    "Processing TEST images"
+                );
+                const description = await this.runtime
+                    .getService<IImageDescriptionService>(
+                        ServiceType.IMAGE_DESCRIPTION
+                    )
+                    .describeImage("https://picsum.photos/200/300");
+                imageDescriptions.push(description);
+                elizaLogger.log(
+                    "Processing TEST images"+imageDescriptions
+                );
             this.isProcessing = true;
             this.lastProcessTime = Date.now();
 
-            elizaLogger.log("Processing tweet actions");
+            elizaLogger.log("Starting to process tweet actions");
 
             await this.runtime.ensureUserExists(
                 this.runtime.agentId,
@@ -467,9 +491,13 @@ export class TwitterPostClient {
             );
 
             const homeTimeline = await this.client.fetchTimelineForActions(15);
+            elizaLogger.log(`Fetched ${homeTimeline.length} tweets to process`);
+
             const results = [];
 
             for (const tweet of homeTimeline) {
+                elizaLogger.log(`Processing tweet ID: ${tweet.id}`);
+
                 try {
                     // Skip if we've already processed this tweet
                     const memory =
@@ -508,11 +536,13 @@ export class TwitterPostClient {
                             twitterActionTemplate,
                     });
 
+
                     const actionResponse = await generateTweetActions({
                         runtime: this.runtime,
                         context: actionContext,
                         modelClass: ModelClass.SMALL,
                     });
+
 
                     if (!actionResponse) {
                         elizaLogger.log(
