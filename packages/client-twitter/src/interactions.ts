@@ -18,15 +18,18 @@ import {
 import { ClientBase } from "./base";
 import { buildConversationThread, sendTweet, wait } from "./utils.ts";
 
+// {{bio}}
+// {{lore}}
+// {{topics}}
+// # Areas of Expertise
+// {{knowledge}}
 export const twitterMessageHandlerTemplate =
     `
-# Areas of Expertise
-{{knowledge}}
+
 
 # About {{agentName}} (@{{twitterUserName}}):
-{{bio}}
-{{lore}}
-{{topics}}
+{{interact}}
+
 
 {{providers}}
 
@@ -100,7 +103,7 @@ export class TwitterInteractionClient {
             setTimeout(
                 handleTwitterInteractionsLoop,
                 Number(
-                    this.runtime.getSetting("TWITTER_POLL_INTERVAL") || 120
+                    this.runtime.getSetting("TWITTER_POLL_INTERVAL") || 600
                 ) * 1000 // Default to 2 minutes
             );
         };

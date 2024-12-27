@@ -994,7 +994,14 @@ Text: ${attachment.text}
                 .slice(0, 3)
                 .join(" ");
         }
-
+        let interact = this.character.interact || "";
+        if (Array.isArray(interact)) {
+            // get three random bio strings and join them with " "
+            interact = interact
+                .sort(() => 0.5 - Math.random())
+                .slice(0, 3)
+                .join(" ");
+        }
         const knowledegeData = await knowledge.get(this, message);
 
         const formattedKnowledge = formatKnowledge(knowledegeData);
@@ -1003,6 +1010,7 @@ Text: ${attachment.text}
             agentId: this.agentId,
             agentName,
             bio,
+            interact,
             lore,
             adjective:
                 this.character.adjectives &&

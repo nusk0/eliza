@@ -93,6 +93,7 @@ export class ImageDescriptionService
         imageUrl: string
     ): Promise<{ title: string; description: string }> {
         if (!this.initialized) {
+            elizaLogger.log("Initializing ImageDescriptionService URL:"+imageUrl);
             const model = models[this.runtime?.character?.modelProvider];
 
             if (model === models[ModelProviderName.LLAMALOCAL]) {
@@ -137,6 +138,7 @@ export class ImageDescriptionService
         let imageData: Buffer | null = null;
 
         try {
+            elizaLogger.log("Recognizing image with OpenAI URL:"+imageUrl);
             if (isGif) {
                 const { filePath } =
                     await this.extractFirstFrameFromGif(imageUrl);
@@ -177,12 +179,13 @@ export class ImageDescriptionService
 
     private async requestOpenAI(
         imageUrl: string,
-        imageData: Buffer,
+        imageData: Buffer | null,
         prompt: string,
         isGif: boolean
     ): Promise<string> {
         for (let attempt = 0; attempt < 3; attempt++) {
             try {
+                elizaLogger.log("Making OpenAI API request, attempt " + (attempt + 1));
                 const content = [
                     { type: "text", text: prompt },
                     {
@@ -194,10 +197,10 @@ export class ImageDescriptionService
                         },
                     },
                 ];
+                const apiKey = this.runtime.getSetting("OPENAI_API_KEY");
+                const endpoint = "https://api.openai.com/v1";  // Use OpenAI endpoint directly
 
-                const endpoint =
-                    models[this.runtime.imageModelProvider].endpoint ??
-                    "https://api.openai.com/v1";
+                elizaLogger.log("Using OpenAI endpoint: " + endpoint);
 
                 const response = await fetch(endpoint + "/chat/completions", {
                     method: "POST",
@@ -212,23 +215,29 @@ export class ImageDescriptionService
                     }),
                 });
 
+                const responseText = await response.text();
+                elizaLogger.log("OpenAI Response Status:", response.status);
+                elizaLogger.log("OpenAI Raw Response:", responseText);
+
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    throw new Error(`HTTP error! status: ${response.status}, response: ${responseText}`);
                 }
 
-                const data = await response.json();
+                const data = JSON.parse(responseText);
                 return data.choices[0].message.content;
             } catch (error) {
                 elizaLogger.error(
                     `OpenAI request failed (attempt ${attempt + 1}):`,
-                    error
+                    {
+                        message: error.message,
+                        stack: error.stack,
+                        cause: error.cause
+                    }
                 );
                 if (attempt === 2) throw error;
             }
         }
-        throw new Error(
-            "Failed to recognize image with OpenAI after 3 attempts"
-        );
+        throw new Error("Failed to recognize image with OpenAI after 3 attempts");
     }
 
     private async processQueue(): Promise<void> {

@@ -256,6 +256,9 @@ export interface State {
     /** Agent's background lore */
     lore: string;
 
+    /** Agent's list of preffered interactions */
+    interact: string;
+
     /** Message handling directions */
     messageDirections: string;
 
@@ -636,6 +639,8 @@ export type Character = {
     /** Optional username */
     username?: string;
 
+
+
     /** Optional system prompt */
     system?: string;
 
@@ -681,6 +686,9 @@ export type Character = {
 
     /** Character background lore */
     lore: string[];
+
+    /** Agent's list of preffered interactions */
+    interact: string[];
 
     /** Example messages */
     messageExamples: MessageExample[][];

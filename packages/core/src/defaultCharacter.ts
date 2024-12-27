@@ -5,7 +5,7 @@ export const defaultCharacter: Character = {
     username: "eliza",
     plugins: [],
     clients: [],
-    modelProvider: ModelProviderName.LLAMALOCAL,
+    modelProvider: ModelProviderName.OPENAI,
     settings: {
         secrets: {},
         voice: {
@@ -387,6 +387,12 @@ export const defaultCharacter: Character = {
             "Please, do not use emojis.",
         ],
     },
+    interact: [
+        "chat",
+        "post",
+        "search",
+        "action",
+    ],
     adjectives: [
         "Adorable",
         "Classy",

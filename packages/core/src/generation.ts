@@ -1633,6 +1633,10 @@ export async function generateTweetActions({
     modelClass: string;
 }): Promise<ActionResponse | null> {
     let retryDelay = 1000;
+
+    // Add this line to see the context
+    console.log("Tweet Actions Context:", context);
+
     while (true) {
         try {
             const response = await generateText({
@@ -1640,7 +1644,11 @@ export async function generateTweetActions({
                 context,
                 modelClass,
             });
-            console.debug(
+            console.log(
+                "Received response from generateText for tweet actions:",
+                response
+            );
+            console.log(
                 "Received response from generateText for tweet actions:",
                 response
             );
@@ -1667,3 +1675,5 @@ export async function generateTweetActions({
         retryDelay *= 2;
     }
 }
+
+
