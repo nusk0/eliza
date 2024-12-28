@@ -134,36 +134,34 @@ export class ImageDescriptionService
     private async recognizeWithOpenAI(
         imageUrl: string
     ): Promise<{ title: string; description: string }> {
-        const isGif = imageUrl.toLowerCase().endsWith(".gif");
-        let imageData: Buffer | null = null;
-
         try {
-            elizaLogger.log("Recognizing image with OpenAI URL:"+imageUrl);
-            if (isGif) {
-                const { filePath } =
-                    await this.extractFirstFrameFromGif(imageUrl);
-                imageData = fs.readFileSync(filePath);
-            } else {
-                const response = await fetch(imageUrl);
-                if (!response.ok) {
-                    throw new Error(
-                        `Failed to fetch image: ${response.statusText}`
-                    );
-                }
-                imageData = Buffer.from(await response.arrayBuffer());
+            elizaLogger.log("Recognizing image with OpenAI URL:" + imageUrl);
+
+            // Fetch the image first
+            const response = await fetch(imageUrl);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
             }
 
-            if (!imageData || imageData.length === 0) {
-                throw new Error("Failed to fetch image data");
-            }
+            // Convert to buffer
+            const imageBuffer = Buffer.from(await response.arrayBuffer());
 
-            const prompt =
-                "Describe this image and give it a title. The first line should be the title, and then a line break, then a detailed description of the image. Respond with the format 'title\ndescription'";
+            // Convert to base64 and ensure it's a supported format
+            const base64Image = imageBuffer.toString('base64');
+            const imageType = response.headers.get('content-type') || 'image/jpeg';
+
+            // Use data URL with proper MIME type
+            const finalImageUrl = `data:${imageType};base64,${base64Image}`;
+
+            elizaLogger.log("Image type:", imageType);
+
+            const prompt = "Describe this image and give it a title, try to identify characters from the show Arcane, especially jinx, vi and ekko. The characters might have different visuals from the original show but try to identify them by using general characteristics. Respond with the format 'title\ndescription'";
+
             const text = await this.requestOpenAI(
-                imageUrl,
-                imageData,
+                finalImageUrl,
+                imageBuffer,
                 prompt,
-                isGif
+                false
             );
 
             const [title, ...descriptionParts] = text.split("\n");
@@ -172,7 +170,11 @@ export class ImageDescriptionService
                 description: descriptionParts.join("\n"),
             };
         } catch (error) {
-            elizaLogger.error("Error in recognizeWithOpenAI:", error);
+            elizaLogger.error("Error in recognizeWithOpenAI:", {
+                message: error.message,
+                stack: error.stack,
+                cause: error.cause
+            });
             throw error;
         }
     }

@@ -53,16 +53,21 @@ Guidelines:
 - Only interact with post that are related to the league of legend or arcane universe
 
 Actions (respond only with tags):
-[LIKE] - Resonates with interests (10/10)
-[RETWEET] - Has to be related to the arcane or league of legend universe (10/10)
-[QUOTE] - Can add unique value (10/10)
-[REPLY] - Something related to jinx and the arcane universe (10/10)
+[LIKE] - Resonates with interests (9.5/10)
+[RETWEET] - Perfect character alignment (9/10)
+[QUOTE] - Can add unique value (8/10)
+[REPLY] - Memetic opportunity (9/10)
 
 Tweet:
 {{currentTweet}}
 
 # Respond with qualifying action tags only.` + postActionResponseFooter;
 
+//Actions (respond only with tags):
+//[LIKE] - Resonates with interests (10/10)
+//[RETWEET] - Has to be related to the arcane or league of legend universe (10/10)
+//[QUOTE] - Can add unique value (9/0)
+//[REPLY] - Something related to jinx and the arcane universe (8/10)
 /**
  * Truncate text to fit within the Twitter character limit, ensuring it ends at a complete sentence.
  */
@@ -458,12 +463,28 @@ export class TwitterPostClient {
         );
     }
 
+
     private async processTweetActions() {
         if (this.isProcessing) {
             elizaLogger.log("Already processing tweet actions, skipping");
             return null;
         }
         try {
+            //image test function
+             /*const imageDescriptions = [];
+
+                elizaLogger.log(
+                    "Processing TEST images"
+                );
+                const description = await this.runtime
+                    .getService<IImageDescriptionService>(
+                        ServiceType.IMAGE_DESCRIPTION
+                    )
+                    .describeImage("https://x.com/lesly_oh/status/1872738371988275557");
+                imageDescriptions.push(description);
+                elizaLogger.log(
+                    "Processing TEST images"+imageDescriptions
+                );*/
             this.isProcessing = true;
             this.lastProcessTime = Date.now();
 
@@ -483,7 +504,22 @@ export class TwitterPostClient {
 
             for (const tweet of homeTimeline) {
                 elizaLogger.log(`Processing tweet ID: ${tweet.id}`);
-
+                //test image description function
+               /* const imageDescriptions = [];
+                            if (tweet.photos?.length > 0) {
+                                elizaLogger.log(
+                                    "Processing images in tweet for context"
+                                );
+                                for (const photo of tweet.photos) {
+                                    const description = await this.runtime
+                                        .getService<IImageDescriptionService>(
+                                            ServiceType.IMAGE_DESCRIPTION
+                                        )
+                                        .describeImage(photo.url);
+                                    imageDescriptions.push(description);
+                                    console.log("photo.url :", photo.url);
+                                }
+                            }*/
                 try {
                     // Skip if we've already processed this tweet
                     const memory =
