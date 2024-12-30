@@ -206,12 +206,12 @@ export class ImageDescriptionService
                         },
                     },
                 ];
-
                 const endpoint =
-                    models[this.runtime.imageModelProvider].endpoint ??
-                    "https://api.openai.com/v1";
+                    this.runtime.imageModelProvider === ModelProviderName.OPENAI
+                        ? models[this.runtime.imageModelProvider].endpoint
+                        : "https://api.openai.com/v1";
 
-                const response = await fetch(endpoint + "/chat/completions", {
+                 const response = await fetch(endpoint + "/chat/completions", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
@@ -236,6 +236,8 @@ export class ImageDescriptionService
                 }
 
                 const data = await response.json();
+                elizaLogger.log("OpenAI Response Status:", response.status);
+                elizaLogger.log("OpenAI Raw Response:", response);
                 return data.choices[0].message.content;
             } catch (error) {
                 elizaLogger.error(
