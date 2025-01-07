@@ -52,6 +52,7 @@ import { imageGenerationPlugin } from "@elizaos/plugin-image-generation";
 import { ThreeDGenerationPlugin } from "@elizaos/plugin-3d-generation";
 import { multiversxPlugin } from "@elizaos/plugin-multiversx";
 import { nearPlugin } from "@elizaos/plugin-near";
+import {test} from "@elizaos/plugin-test";
 import { nftGenerationPlugin } from "@elizaos/plugin-nft-generation";
 import { createNodePlugin } from "@elizaos/plugin-node";
 import { solanaPlugin } from "@elizaos/plugin-solana";
@@ -529,6 +530,7 @@ export async function createAgent(
                 ? confluxPlugin
                 : null,
             nodePlugin,
+            test,
             getSecret(character, "TAVILY_API_KEY") ? webSearchPlugin : null,
             getSecret(character, "SOLANA_PUBLIC_KEY") ||
             (getSecret(character, "WALLET_PUBLIC_KEY") &&
