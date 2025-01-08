@@ -20,7 +20,6 @@ export const browserSearchAction: Action = {
         "search for",
         "google",
         "research",
-        "01111101010101011010",
         "find out about"
     ],
     validate: async (_runtime: IAgentRuntime, _message: Memory) => {
@@ -89,6 +88,8 @@ export const browserSearchAction: Action = {
         Extract the search query from the message. The message is: "${_message.content.text}"
         Only respond with a "search_query" field in JSON format.`;
 
+       
+
         const context = await composeContext({
             username: _message.agentId.user,
             state: _state,
@@ -135,16 +136,37 @@ export const browserSearchAction: Action = {
             const memoryWithEmbedding = await _runtime.messageManager.addEmbeddingToMemory(newMemory);
             await _runtime.messageManager.createMemory(memoryWithEmbedding);
 
-            _callback({
-                text: searchResults,
-            });
+            //=_callback({
+            //    text: searchResults,
+            //});
         } catch (error) {
             console.error("Error saving search results memory:", error);
             _callback({
                 text: "I apologize, but I encountered an error while processing the search results.",
             });
         }
+        const agentResponseTemplate = `
+        #Recent messages:
+        #search results: 
+        #Task
+        Make a summary of the search results with your own voice in an interesting and engaging way.`;
 
+        const contextBrowser = await composeContext({
+            username: _message.agentId.user,
+            state: _state,
+            template: agentResponseTemplate,
+        });
+
+       // console.log(" Browser Search context", context);
+        const responseBrowser = await generateText({
+            runtime: _runtime,
+            context: contextBrowser,
+            template: agentResponseTemplate,
+            modelClass: ModelClass.Large,
+        });
+        _callback({
+            text: responseBrowser.text,
+        });
         return true;
     },
     examples: [

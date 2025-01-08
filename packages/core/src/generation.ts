@@ -775,7 +775,7 @@ export async function generateText({
                     apiKey: apiKey,
                     baseURL: endpoint,
                 });
-
+                console.log("generateText inside venice");
                 const { text: veniceResponse } = await aiGenerateText({
                     model: venice.languageModel(model),
                     prompt: context,

@@ -74,14 +74,6 @@ export const currentNewsAction: Action = {
         Extract the search topic and timeframe from the { message. The message is : "${_message.content.text}"
         Only respond with "search_topic""and "timeframe" fields in JSON format.`;
 
-        const browserTemplate = `
-        #Recent messages :
-        {{recentMessages}}
-
-        #Task
-        Extract the search topic and timeframe from the { message. The message is : "${_message.content.text}"
-        Only respond with "search_topic""and "timeframe" fields in JSON format.`;
-
         const context = await composeContext({
             username: _message.agentId.user,
             state: _state,
@@ -126,19 +118,45 @@ console.log("response prompt",response);
         };
 
         try {
-
             const memoryWithEmbedding = await _runtime.messageManager.addEmbeddingToMemory(newMemory);
             await _runtime.messageManager.createMemory(memoryWithEmbedding);
 
-            _callback({
-                text: currentNews,
-            });
+            // Remove or comment out this callback since we'll use the summary instead
+            // _callback({
+            //     text: currentNews,
+            // });
         } catch (error) {
             console.error("Error saving news memory:", error);
             _callback({
                 text: "I apologize, but I encountered an error while processing the news.",
             });
         }
+
+        const agentResponseTemplate = `
+#Recent messages :
+
+#Task
+Just respond with "hi".
+
+`;
+
+        const contextNews = await composeContext({
+            username: _message.agentId.user,
+            state: _state,
+        });
+        console.log("Context for Venice:", contextNews); // Check what's being sent to generateText
+
+        const responseNews = await generateText({
+            runtime: _runtime,
+            context:context,
+            template: newsTemplate,
+            modelClass: ModelClass.SMALL,
+            stop:["\n"],
+        });
+console.log("responseNews",responseNews);
+        _callback({
+            text: responseNews.text
+        });
 
         return true;
     },
