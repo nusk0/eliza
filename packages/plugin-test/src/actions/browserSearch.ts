@@ -80,6 +80,7 @@ export const browserSearchAction: Action = {
             });
         }
 
+        // First callback to acknowledge the search
         const searchTemplate = `
         #Recent messages:
         {{recentMessages}}
@@ -88,38 +89,32 @@ export const browserSearchAction: Action = {
         Extract the search query from the message. The message is: "${_message.content.text}"
         Only respond with a "search_query" field in JSON format.`;
 
-       
-
         const context = await composeContext({
             username: _message.agentId.user,
             state: _state,
             template: searchTemplate,
         });
 
-       // console.log(" Browser Search context", context);
         const response = await generateText({
             runtime: _runtime,
             context: context,
-            template: searchTemplate,
             modelClass: ModelClass.SMALL,
             stop: ["\n"],
         });
 
         const cleanedResponse = response.text.replace(/```/g, '').trim();
-        console.log("response prompt", cleanedResponse);
-
-        // Parse the JSON response from the AI
         const parsedResponse = JSON.parse(cleanedResponse);
         const searchQuery = parsedResponse.search_query;
 
-        console.log("Search Query:", searchQuery);
-
+        // Inform user that search is starting
         _callback({
             text: "Searching the web for: " + searchQuery,
         });
 
+        // Get search results
         const searchResults = await performSearch(searchQuery);
 
+        // Save to memory
         const newMemory: Memory = {
             id: crypto.randomUUID(),
             userId: _message.userId,
@@ -136,37 +131,41 @@ export const browserSearchAction: Action = {
             const memoryWithEmbedding = await _runtime.messageManager.addEmbeddingToMemory(newMemory);
             await _runtime.messageManager.createMemory(memoryWithEmbedding);
 
-            //=_callback({
-            //    text: searchResults,
-            //});
+            // Generate summary
+            const agentResponseTemplate = `
+            #Recent messages :
+            {{recentMessages}}
+
+            #Task
+            Summarize these search results in an engaging and informative way:
+            ${searchResults}`;
+
+            const contextBrowser = await composeContext({
+                username: _message.agentId.user,
+                state: _state,
+                template: agentResponseTemplate,
+            });
+
+            const responseBrowser = await generateText({
+                runtime: _runtime,
+                context: contextBrowser,
+                template: agentResponseTemplate,
+                modelClass: ModelClass.SMALL,
+                stop: ["\n"],
+            });
+
+            // Send the summary to the user
+            _callback({
+                text: responseBrowser.text
+            });
+
         } catch (error) {
-            console.error("Error saving search results memory:", error);
+            console.error("Error in search processing:", error);
             _callback({
                 text: "I apologize, but I encountered an error while processing the search results.",
             });
         }
-        const agentResponseTemplate = `
-        #Recent messages:
-        #search results: 
-        #Task
-        Make a summary of the search results with your own voice in an interesting and engaging way.`;
 
-        const contextBrowser = await composeContext({
-            username: _message.agentId.user,
-            state: _state,
-            template: agentResponseTemplate,
-        });
-
-       // console.log(" Browser Search context", context);
-        const responseBrowser = await generateText({
-            runtime: _runtime,
-            context: contextBrowser,
-            template: agentResponseTemplate,
-            modelClass: ModelClass.Large,
-        });
-        _callback({
-            text: responseBrowser.text,
-        });
         return true;
     },
     examples: [

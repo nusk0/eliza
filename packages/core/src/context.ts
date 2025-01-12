@@ -35,11 +35,12 @@ export const composeContext = ({
     template: string;
     templatingEngine?: "handlebars";
 }) => {
+    console.log("state", state);
     if (templatingEngine === "handlebars") {
         const templateFunction = handlebars.compile(template);
         return templateFunction(state);
     }
-
+    console.log("template", template);
     // @ts-expect-error match isn't working as expected
     const out = template.replace(/{{\w+}}/g, (match) => {
         const key = match.replace(/{{|}}/g, "");

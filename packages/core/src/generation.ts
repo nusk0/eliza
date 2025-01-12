@@ -775,6 +775,7 @@ export async function generateText({
                     apiKey: apiKey,
                     baseURL: endpoint,
                 });
+                console.log("Context for Venice",context);
                 console.log("generateText inside venice");
                 const { text: veniceResponse } = await aiGenerateText({
                     model: venice.languageModel(model),
@@ -791,7 +792,7 @@ export async function generateText({
                 });
 
                 response = veniceResponse;
-                elizaLogger.debug("Received response from Venice model.");
+                elizaLogger.log("Received response from Venice model.", veniceResponse);
                 break;
             }
 

@@ -63,9 +63,7 @@ export const currentNewsAction: Action = {
             }).join('');
 
         }
-// {{recentconversation}}
-// {{recentMessages}}
-// {{userId}}
+
         const newsTemplate = `
         #Recent messages :
         {{recentMessages}}
@@ -75,36 +73,32 @@ export const currentNewsAction: Action = {
         Only respond with "search_topic""and "timeframe" fields in JSON format.`;
 
         const context = await composeContext({
-            username: _message.agentId.user,
-            state: _state,
-            template: newsTemplate,
+             username: _message.agentId.user,
+             state: _state,
+             template: newsTemplate,
 
         });
 
-        console.log("context",context);
+        //console.log("context",context);
         const response =await generateText({
             runtime: _runtime,
             context:context,
-            template: newsTemplate,
             modelClass: ModelClass.SMALL,
             stop:["\n"],
         })
-        console.log("response prompt", response.text);
         const cleanedResponse = response.replace(/```/g, '').trim();
-console.log("response prompt",response);
         // Parse the JSON response from the AI
         const parsedResponse = JSON.parse(cleanedResponse);
         const searchTerm = parsedResponse.search_topic;
         const timeframe = parsedResponse.timeframe;
 
-        console.log("Search Term:", searchTerm);
-        console.log("Timeframe:", timeframe);
 
-        _callback({
-            text: "Guetting current news on " + searchTerm + "in the time frame " + timeframe,
-        })
+
+        
         const currentNews = await getCurrentNews(searchTerm, timeframe);
-
+        //_callback({
+            //text: currentNews
+        //})
         const newMemory: Memory = {
             id: crypto.randomUUID(),
             userId: _message.userId,
@@ -132,30 +126,33 @@ console.log("response prompt",response);
             });
         }
 
-        const agentResponseTemplate = `
+  const agentResponseTemplate=  `
 #Recent messages :
+{{recentMessages}}
 
 #Task
-Just respond with "hi".
-
+Dont use descriptive action like : *grins*.
+Summarize the following news in your own voices, make it engaging, funny and interesting.  :
+${currentNews}
 `;
-
+//console.log("currentNews content:", currentNews);
         const contextNews = await composeContext({
             username: _message.agentId.user,
+            template: agentResponseTemplate,
             state: _state,
         });
-        console.log("Context for Venice:", contextNews); // Check what's being sent to generateText
+        //console.log("Context for Venice:", contextNews); // Check what's being sent to generateText
 
+        console.log("just before responseNews");
         const responseNews = await generateText({
             runtime: _runtime,
-            context:context,
-            template: newsTemplate,
-            modelClass: ModelClass.SMALL,
-            stop:["\n"],
+            context:contextNews,
+           
+            modelClass: ModelClass.LARGE,
         });
-console.log("responseNews",responseNews);
+ 
         _callback({
-            text: responseNews.text
+            text: responseNews
         });
 
         return true;
