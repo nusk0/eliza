@@ -1,0 +1,12 @@
+{
+  "contents": [{
+    "parts":[{
+      "text": "What is in this image?"
+    },{
+      "inline_data": {
+        "mime_type": "image/jpeg",
+        "data": "PLACEHOLDER"
+      }
+    }]
+  }]
+}

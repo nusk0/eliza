@@ -1644,14 +1644,8 @@ export async function generateTweetActions({
                 context,
                 modelClass,
             });
-            console.log(
-                "Received response from generateText for tweet actions:",
-                response
-            );
-            console.log(
-                "Received response from generateText for tweet actions:",
-                response
-            );
+
+
             const { actions } = parseActionResponseFromText(response.trim());
             if (actions) {
                 console.debug("Parsed tweet actions:", actions);

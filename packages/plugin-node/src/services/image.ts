@@ -157,7 +157,7 @@ export class ImageDescriptionService
 
             const prompt = "Describe this image and give it a title, try to identify characters from the show Arcane, especially jinx, vi and ekko. The characters might have different visuals from the original show but try to identify them by using general characteristics. Respond with the format 'title\ndescription'";
 
-            const text = await this.requestOpenAI(
+            const text = await this.requestWithGoogle(
                 finalImageUrl,
                 imageBuffer,
                 prompt,
@@ -240,6 +240,81 @@ export class ImageDescriptionService
             }
         }
         throw new Error("Failed to recognize image with OpenAI after 3 attempts");
+    }
+
+    private async requestWithGoogle(
+        imageUrl: string,
+        imageData: Buffer | null,
+        prompt: string,
+        isGif: boolean
+    ): Promise<string> {
+        for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+                elizaLogger.log("Making Google Gemini API request, attempt " + (attempt + 1));
+
+                // Use the imageData that was already fetched
+                let base64Image: string;
+                if (imageData) {
+                    base64Image = imageData.toString("base64");
+                } else {
+                    // Fallback to fetching if somehow imageData is null
+                    const response = await fetch(imageUrl);
+                    const buffer = await response.arrayBuffer();
+                    base64Image = Buffer.from(buffer).toString("base64");
+                }
+
+                const endpoint = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent";
+                const apiKey = this.runtime.getSetting("GOOGLE_GENERATIVE_AI_API_KEY");
+
+                elizaLogger.log("Using Google Gemini endpoint: " + endpoint);
+
+                const response = await fetch(`${endpoint}?key=${apiKey}`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [
+                                {
+                                    text: prompt
+                                },
+                                {
+                                    inline_data: {
+                                        mime_type: isGif ? "image/gif" : "image/jpeg",
+                                        data: base64Image
+                                    }
+                                }
+                            ]
+                        }]
+                    })
+                });
+
+                const responseText = await response.text();
+                elizaLogger.log("Google Gemini Response Status:", response.status);
+                elizaLogger.log("Google Gemini Raw Response:", responseText);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}, response: ${responseText}`);
+                }
+
+                const data = JSON.parse(responseText);
+                // Extract text from Gemini response
+                return data.candidates[0].content.parts[0].text;
+
+            } catch (error) {
+                elizaLogger.error(
+                    `Google Gemini request failed (attempt ${attempt + 1}):`,
+                    {
+                        message: error.message,
+                        stack: error.stack,
+                        cause: error.cause
+                    }
+                );
+                if (attempt === 2) throw error;
+            }
+        }
+        throw new Error("Failed to recognize image with Google Gemini after 3 attempts");
     }
 
     private async processQueue(): Promise<void> {

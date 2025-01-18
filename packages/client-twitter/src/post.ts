@@ -20,14 +20,15 @@ import { DEFAULT_MAX_TWEET_LENGTH } from "./environment.ts";
 // {{bio}}
 // {{lore}}
 // {{topics}}
-
-
+/*
 const twitterPostTemplate = `
 # Areas of Expertise
 {{interact}}
 
 # About {{agentName}} (@{{twitterUserName}}):
-
+{{bio}}
+{{lore}}
+{{topics}}
 
 {{providers}}
 
@@ -39,6 +40,31 @@ const twitterPostTemplate = `
 Write a post that is {{adjective}} about {{topic}} (without mentioning {{topic}} directly), from the perspective of {{agentName}}. Do not add commentary or acknowledge this request, just write the post.
 Your response should be 1, 2, or 3 sentences (choose the length at random).
 Your response should not contain any questions. Brief, concise statements only. The total character count MUST be less than {{maxTweetLength}}. No emojis. Use \\n\\n (double spaces) between statements if there are multiple statements in your response.`;
+*/
+const twitterPostTemplate = `
+
+
+# About {{agentName}} (@{{twitterUserName}}):
+{{bio}}
+{{lore}}
+{{topics}}
+
+{{providers}}
+
+
+
+Recent interactions and thoughts:
+{{recentInteractions}}
+{{recentMessages}}
+
+# Task: Generate a post in the voice and style of {{agentName}} @{{twitterUserName}} that either:
+1. References a recent interaction in a chaotic/playful way
+2. Tags someone on twitter in response to a previous interaction (make it funny and playful)
+2. Shares a thought about something that recently happened
+3. Makes a chaotic observation about Zaun/Piltover/recent events
+
+Your response should maintain {{agentName}}'s personality and authenticity. Make the post engaging and interesting or funny so people react to it. Do not add commentary or acknowledge this request, just write the post.
+The total character count MUST be less than {{maxTweetLength}}.`;
 export const twitterActionTemplate =
 //{{postDirections}}
     `
@@ -55,7 +81,7 @@ Guidelines:
 Actions (respond only with tags):
 [LIKE] - Resonates with interests (9.5/10)
 [RETWEET] - Perfect character alignment (9/10)
-[QUOTE] - Can add unique value (8/10)
+[QUOTE] - Can add unique value (9/10)
 [REPLY] - Memetic opportunity (9/10)
 
 Tweet:
@@ -240,6 +266,7 @@ export class TwitterPostClient {
                 },
                 {
                     twitterUserName: this.client.profile.username,
+                    recentInteractions: await this.runtime.getRecentInteractions(),
                 }
             );
 
@@ -257,7 +284,7 @@ export class TwitterPostClient {
             const newTweetContent = await generateText({
                 runtime: this.runtime,
                 context,
-                modelClass: ModelClass.SMALL,
+                modelClass: ModelClass.LARGE,
             });
 
             // First attempt to clean content
@@ -505,7 +532,7 @@ export class TwitterPostClient {
             for (const tweet of homeTimeline) {
                 elizaLogger.log(`Processing tweet ID: ${tweet.id}`);
                 //test image description function
-               /* const imageDescriptions = [];
+                /*const imageDescriptions = [];
                             if (tweet.photos?.length > 0) {
                                 elizaLogger.log(
                                     "Processing images in tweet for context"
@@ -678,6 +705,7 @@ export class TwitterPostClient {
                                         quotedContent,
                                     }
                                 );
+                                console.log("enrichedState", enrichedState);
 
                             const quoteContent =
                                 await this.generateTweetContent(enrichedState, {

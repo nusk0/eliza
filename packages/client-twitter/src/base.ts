@@ -284,7 +284,7 @@ export class ClientBase extends EventEmitter {
                     hashtags: tweet.hashtags ?? tweet.legacy?.entities.hashtags,
                     mentions:
                         tweet.mentions ?? tweet.legacy?.entities.user_mentions,
-                        photos: tweet.legacy?.entities?.media?.filter(
+                    photos: tweet.legacy?.entities?.media?.filter(
                             (media) => media.type === "photo"
                         ).map(media => ({
                             id: media.id_str,

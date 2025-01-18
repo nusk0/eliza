@@ -114,24 +114,27 @@ export class TranscriptionService
     }
 
     private async convertAudio(inputBuffer: ArrayBuffer): Promise<Buffer> {
+        console.log("testing5");
         const inputPath = path.join(
             this.CONTENT_CACHE_DIR,
             `input_${Date.now()}.wav`
         );
+        console.log("testing6");
         const outputPath = path.join(
             this.CONTENT_CACHE_DIR,
             `output_${Date.now()}.wav`
         );
-
+        console.log("testing7");
         fs.writeFileSync(inputPath, Buffer.from(inputBuffer));
-
+        console.log("testing8");
         try {
+            console.log("testing9");
             const { stdout } = await execAsync(
                 `ffprobe -v error -show_entries stream=codec_name,sample_rate,channels -of json "${inputPath}"`
             );
             const probeResult = JSON.parse(stdout);
             const stream = probeResult.streams[0];
-
+            console.log("testing4");
             elizaLogger.log("Input audio info:", stream);
 
             let ffmpegCommand = `ffmpeg -i "${inputPath}" -ar ${this.TARGET_SAMPLE_RATE} -ac 1`;
@@ -141,10 +144,11 @@ export class TranscriptionService
             }
 
             ffmpegCommand += ` "${outputPath}"`;
-
+            console.log("testing1");
             elizaLogger.log("FFmpeg command:", ffmpegCommand);
-
+            console.log("testing2");
             await execAsync(ffmpegCommand);
+            console.log("testing3");
 
             const convertedBuffer = fs.readFileSync(outputPath);
             fs.unlinkSync(inputPath);

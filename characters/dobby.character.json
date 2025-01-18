@@ -1,7 +1,7 @@
 {
     "name": "Dobby",
     "clients": [],
-    "modelProvider": "anthropic",
+    "modelProvider": "venice",
     "settings": {
         "voice": {
             "model": "en_GB-danny-low"

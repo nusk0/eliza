@@ -457,7 +457,7 @@ export const models: Models = {
             stop: [],
             maxInputTokens: 128000,
             maxOutputTokens: 8192,
-            temperature: 0.6,
+            temperature: 0.7,
         },
         model: {
             [ModelClass.SMALL]: settings.SMALL_VENICE_MODEL || "llama-3.3-70b",

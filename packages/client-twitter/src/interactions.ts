@@ -24,12 +24,14 @@ import { buildConversationThread, sendTweet, wait } from "./utils.ts";
 // # Areas of Expertise
 // {{knowledge}}
 export const twitterMessageHandlerTemplate =
-    `
-
-
-# About {{agentName}} (@{{twitterUserName}}):
+`
+# Areas of Expertise
 {{interact}}
 
+# About {{agentName}} (@{{twitterUserName}}):
+{{bio}}
+{{lore}}
+{{topics}}
 
 {{providers}}
 
@@ -427,7 +429,7 @@ export class TwitterInteractionClient {
                 this.runtime.character?.templates?.messageHandlerTemplate ||
                 twitterMessageHandlerTemplate,
         });
-
+        console.log("Jinx context", context);
         elizaLogger.debug("Interactions prompt:\n" + context);
 
         const response = await generateMessageResponse({
