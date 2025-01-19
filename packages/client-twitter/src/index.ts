@@ -9,6 +9,7 @@ import { TwitterInteractionClient } from "./interactions.ts";
 import { TwitterPostClient } from "./post.ts";
 import { TwitterSearchClient } from "./search.ts";
 import { TwitterSpaceClient } from "./spaces.ts";
+import { TwitterSourceClient } from "./source.ts";
 
 /**
  * A manager that orchestrates all specialized Twitter logic:
@@ -24,7 +25,7 @@ class TwitterManager {
     search: TwitterSearchClient;
     interaction: TwitterInteractionClient;
     space?: TwitterSpaceClient;
-
+    source: TwitterSourceClient;
     constructor(runtime: IAgentRuntime, twitterConfig: TwitterConfig) {
         // Pass twitterConfig to the base client
         this.client = new ClientBase(runtime, twitterConfig);
@@ -44,7 +45,7 @@ class TwitterManager {
 
         // Mentions and interactions
         this.interaction = new TwitterInteractionClient(this.client, runtime);
-
+        this.source = new TwitterSourceClient(this.client, runtime);
         // Optional Spaces logic (enabled if TWITTER_SPACES_ENABLE is true)
         if (twitterConfig.TWITTER_SPACES_ENABLE) {
             this.space = new TwitterSpaceClient(this.client, runtime);
@@ -64,16 +65,18 @@ export const TwitterClientInterface: Client = {
         await manager.client.init();
 
         // Start the posting loop
-        await manager.post.start();
+        //await manager.post.start();
 
         // Start the search logic if it exists
         if (manager.search) {
-            await manager.search.start();
+            //await manager.search.start();
         }
-
+        
         // Start interactions (mentions, replies)
-        await manager.interaction.start();
-
+        //await manager.interaction.start();
+        console.log("Starting source monitoring");
+        await manager.source.start();
+        console.log("Source monitoring started");
         // If Spaces are enabled, start the periodic check
         if (manager.space) {
             manager.space.startPeriodicSpaceCheck();

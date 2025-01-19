@@ -379,7 +379,7 @@ export class TwitterInteractionClient {
 
         // get usernames into str
         const validTargetUsersStr = this.client.twitterConfig.TWITTER_TARGET_USERS.join(",");
-
+/*
         const shouldRespondContext = composeContext({
             state,
             template:
@@ -477,7 +477,7 @@ export class TwitterInteractionClient {
             } catch (error) {
                 elizaLogger.error(`Error sending response tweet: ${error}`);
             }
-        }
+        }*/
     }
 
     async buildConversationThread(

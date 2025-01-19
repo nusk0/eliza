@@ -202,6 +202,7 @@ export class MemoryManager implements IMemoryManager {
         if (result && result.agentId !== this.runtime.agentId) return null;
         return result;
     }
+    
 
     /**
      * Removes a memory from the database by its ID.
