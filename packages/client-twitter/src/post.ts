@@ -277,7 +277,7 @@ export class TwitterPostClient {
                     twitterPostTemplate,
             });
 
-            console.log("twitter context:\n" + context);
+            //console.log("twitter context:\n" + context);
 
             elizaLogger.debug("generate post prompt:\n" + context);
 
@@ -434,9 +434,7 @@ export class TwitterPostClient {
                 this.runtime.character.templates?.twitterPostTemplate ||
                 twitterPostTemplate,
         });
-        console.log("tweetState INSIDE generate tweet content:\n" + tweetState);
-        console.log("context INSIDE generate tweet content:\n" + context);
-        console.log("runtime INSIDE generate tweet content:\n" + this.runtime);
+
         const response = await generateText({
             runtime: this.runtime,
             context: options?.context || context,
@@ -525,7 +523,6 @@ export class TwitterPostClient {
                 this.runtime.character.name,
                 "twitter"
             );
-           // elizaLogger.log(`Fetched ${homeTimeline.length} tweets to process`);
         // this is testing code ####################################
             let tweets = [];
             // Check if we're in test mode with a specific tweet
@@ -545,7 +542,6 @@ export class TwitterPostClient {
 
             const results = [];
 // this is testing code ####################################
-            //for (const tweet of homeTimeline) {
             for (const tweet of tweets) {
                 elizaLogger.log(`Processing tweet ID: ${tweet.id}`);
                 //test image description function
@@ -618,7 +614,6 @@ export class TwitterPostClient {
                         );
                         continue;
                     }
-                    actionResponse.reply = true;
                     const executedActions: string[] = [];
 
                     // Execute actions
@@ -919,7 +914,7 @@ export class TwitterPostClient {
                 }
             );
 
-            console.log("enrichedState INSIDE REPLY", enrichedState);
+            //console.log("enrichedState INSIDE REPLY", enrichedState);
             // Generate and clean the reply content
             const replyText = await this.generateTweetContent(enrichedState, {
                 template:
