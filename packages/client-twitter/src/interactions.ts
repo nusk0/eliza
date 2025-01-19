@@ -22,7 +22,7 @@ import { buildConversationThread, sendTweet, wait } from "./utils.ts";
 // {{lore}}
 // {{topics}}
 // # Areas of Expertise
-// {{knowledge}}
+// {{interact}}
 export const twitterMessageHandlerTemplate =
 `
 # Areas of Expertise
@@ -35,9 +35,9 @@ export const twitterMessageHandlerTemplate =
 
 {{providers}}
 
-{{characterPostExamples}}
+{{characterMessageExamples}}
 
-{{postDirections}}
+{{messageDirections}}
 
 Recent interactions between {{agentName}} and other users:
 {{recentPostInteractions}}
@@ -47,6 +47,7 @@ Recent interactions between {{agentName}} and other users:
 # Task: Generate a post/reply in the voice, style and perspective of {{agentName}} (@{{twitterUserName}}) while using the thread of tweets as additional context:
 Current Post:
 {{currentPost}}
+{{imageContext}}
 
 Thread of Tweets You Are Replying To:
 {{formattedConversation}}
@@ -384,6 +385,7 @@ export class TwitterInteractionClient {
                 roomId,
                 createdAt: tweet.timestamp * 1000,
             };
+            console.log("message inside tweet", message);
             this.client.saveRequestMessage(message, state);
         }
 

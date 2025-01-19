@@ -426,6 +426,7 @@ export class TwitterPostClient {
             context?: string;
         }
     ): Promise<string> {
+
         const context = composeContext({
             state: tweetState,
             template:
@@ -433,14 +434,15 @@ export class TwitterPostClient {
                 this.runtime.character.templates?.twitterPostTemplate ||
                 twitterPostTemplate,
         });
-
+        console.log("tweetState INSIDE generate tweet content:\n" + tweetState);
+        console.log("context INSIDE generate tweet content:\n" + context);
+        console.log("runtime INSIDE generate tweet content:\n" + this.runtime);
         const response = await generateText({
             runtime: this.runtime,
             context: options?.context || context,
-            modelClass: ModelClass.SMALL,
+            modelClass: ModelClass.LARGE,
         });
-        console.log("generate tweet content response:\n" + response);
-
+        //console.log("generate tweet content response:\n" + response);
         // First clean up any markdown and newlines
         const cleanedResponse = response
             .replace(/```json\s*/g, "") // Remove ```json
@@ -523,13 +525,28 @@ export class TwitterPostClient {
                 this.runtime.character.name,
                 "twitter"
             );
+           // elizaLogger.log(`Fetched ${homeTimeline.length} tweets to process`);
+        // this is testing code ####################################
+            let tweets = [];
+            // Check if we're in test mode with a specific tweet
+            const testTweetId = this.runtime.getSetting("TEST_TWEET_ID");
+            if (testTweetId) {
+                elizaLogger.log(`Test mode: Processing specific tweet ${testTweetId}`);
+                const tweet = await this.client.twitterClient.getTweet(testTweetId);
+                if (tweet) {
+                    tweets = [tweet];
+                }
+            } else {
+                // Normal operation - fetch timeline
+                tweets = await this.client.fetchTimelineForActions(15);
+            }
 
-            const homeTimeline = await this.client.fetchTimelineForActions(15);
-            elizaLogger.log(`Fetched ${homeTimeline.length} tweets to process`);
+            elizaLogger.log(`Processing ${tweets.length} tweets`);
 
             const results = [];
-
-            for (const tweet of homeTimeline) {
+// this is testing code ####################################
+            //for (const tweet of homeTimeline) {
+            for (const tweet of tweets) {
                 elizaLogger.log(`Processing tweet ID: ${tweet.id}`);
                 //test image description function
                 /*const imageDescriptions = [];
@@ -548,16 +565,18 @@ export class TwitterPostClient {
                                 }
                             }*/
                 try {
-                    // Skip if we've already processed this tweet
-                    const memory =
-                        await this.runtime.messageManager.getMemoryById(
+                    // Skip if we've already processed this tweet, but only if not in test mode
+                    const testTweetId = this.runtime.getSetting("TEST_TWEET_ID");
+                    if (!testTweetId) {  // Only check memory if not in test mode
+                        const memory = await this.runtime.messageManager.getMemoryById(
                             stringToUuid(tweet.id + "-" + this.runtime.agentId)
                         );
-                    if (memory) {
-                        elizaLogger.log(
-                            `Already processed tweet ID: ${tweet.id}`
-                        );
-                        continue;
+                        if (memory) {
+                            elizaLogger.log(`Already processed tweet ID: ${tweet.id}`);
+                            continue;
+                        }
+                    } else {
+                        elizaLogger.log("Test mode: Skipping memory check to allow reprocessing");
                     }
 
                     const roomId = stringToUuid(
@@ -586,7 +605,7 @@ export class TwitterPostClient {
                     });
 
 
-                    const actionResponse = await generateTweetActions({
+                    let actionResponse = await generateTweetActions({
                         runtime: this.runtime,
                         context: actionContext,
                         modelClass: ModelClass.SMALL,
@@ -599,7 +618,7 @@ export class TwitterPostClient {
                         );
                         continue;
                     }
-
+                    actionResponse.reply = true;
                     const executedActions: string[] = [];
 
                     // Execute actions
@@ -700,12 +719,13 @@ export class TwitterPostClient {
                                         formattedConversation,
                                         imageContext:
                                             imageDescriptions.length > 0
-                                                ? `\nImages in Tweet:\n${imageDescriptions.map((desc, i) => `Image ${i + 1}: ${desc}`).join("\n")}`
+                                                ? `\nImages in Tweet:\n${imageDescriptions.map((desc, i) => `Image ${i + 1}: ${desc?.description || desc?.title || 'No description available'}`).join("\n")}`
                                                 : "",
                                         quotedContent,
                                     }
                                 );
-                                console.log("enrichedState", enrichedState);
+                                console.log("Raw image description object:", JSON.stringify(imageDescriptions[0], null, 2));
+                                console.log("image description",`\nImages in Tweet:\n${imageDescriptions.map((desc, i) => `Image ${i + 1}: ${desc?.description || desc?.title || 'No description available'}`).join("\n")}`);
 
                             const quoteContent =
                                 await this.generateTweetContent(enrichedState, {
@@ -893,12 +913,13 @@ export class TwitterPostClient {
                     formattedConversation,
                     imageContext:
                         imageDescriptions.length > 0
-                            ? `\nImages in Tweet:\n${imageDescriptions.map((desc, i) => `Image ${i + 1}: ${desc}`).join("\n")}`
+                            ? `\nImages in Tweet:\n${imageDescriptions.map((desc, i) => `Image ${i + 1}: ${desc?.description || desc?.title || 'No description available'}`).join("\n")}`
                             : "",
                     quotedContent,
                 }
             );
 
+            console.log("enrichedState INSIDE REPLY", enrichedState);
             // Generate and clean the reply content
             const replyText = await this.generateTweetContent(enrichedState, {
                 template:
@@ -906,7 +927,7 @@ export class TwitterPostClient {
                         ?.twitterMessageHandlerTemplate ||
                     twitterMessageHandlerTemplate,
             });
-
+            console.log("replyText", replyText)
             if (!replyText) {
                 elizaLogger.error("Failed to generate valid reply content");
                 return;

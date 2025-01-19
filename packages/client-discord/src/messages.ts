@@ -388,7 +388,7 @@ export class MessageManager {
                             ?.discordMessageHandlerTemplate ||
                         discordMessageHandlerTemplate,
                 });
-
+                console.log("THIS IS CONTEXT", context)
                 const responseContent = await this._generateResponse(
                     memory,
                     state,

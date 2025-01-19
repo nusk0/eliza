@@ -155,8 +155,21 @@ export class ImageDescriptionService
 
             elizaLogger.log("Image type:", imageType);
 
-            const prompt = "Describe this image and give it a title, try to identify characters from the show Arcane, especially jinx, vi and ekko. The characters might have different visuals from the original show but try to identify them by using general characteristics. Respond with the format 'title\ndescription'";
-
+            const prompt = "Describe this image and give it a title, try to identify characters from the show Arcane, especially jinx, isha, caitlyn, vi and ekko. The characters might have different visuals from the original show but try to identify them by using general characteristics. Respond with the format 'title\ndescription'";
+            /*const prompt = `
+            #Key Character Identifiers:
+            - Vi: Athletic build, pink-red hair (side shaved), facial scar, tattoos (including "VI" on cheek), light blue eyes
+            - Jinx: Slender frame, long blue braided hair, bright pink/blue eyes, pale skin with purple patterns, cloud tattoos
+            - Ekko: Athletic build, white dreadlocks, dark skin, white face paint markings
+            - Caitlyn: Tall elegant build, long dark hair, blue eyes, refined posture
+            - Viktor: Lean frame, dark shoulder-length hair, pale complexion, limping gait
+            - Jayce: Tall muscular build, dark hair/beard, broad shoulders
+            - Mel: Dark skin with gold accents, long braided hair, regal posture
+            Isha: A young girl around 8-10 years old with golden brown almond-shaped eyes, faint freckles across her cheeks, slightly pale skin, and a button nose with a noticeable gap between her front teeth10. Initially had short, tousled brown hair which she later dyed blue10. She wears a bluish-green sleeveless vest over a white undershirt, dark purple trousers, long yellow socks, brown boots, and pink war paint on her face10. After meeting Jinx, she got matching cloud tattoos on her arms and shoulders10.
+            - Heimerdinger: Small stature, wild blonde hair/beard, large eyes, pointed ears
+            #TASK
+            Describe this image and give it a title, try to identify characters or scenes from the show Arcane. For character
+             Respond with the format 'title\\ndescription'`;*/
             const text = await this.requestWithGoogle(
                 finalImageUrl,
                 imageBuffer,
@@ -263,7 +276,7 @@ export class ImageDescriptionService
                     base64Image = Buffer.from(buffer).toString("base64");
                 }
 
-                const endpoint = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent";
+                const endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent";
                 const apiKey = this.runtime.getSetting("GOOGLE_GENERATIVE_AI_API_KEY");
 
                 elizaLogger.log("Using Google Gemini endpoint: " + endpoint);
@@ -275,6 +288,7 @@ export class ImageDescriptionService
                     },
                     body: JSON.stringify({
                         contents: [{
+                            role: "user",
                             parts: [
                                 {
                                     text: prompt
@@ -286,7 +300,8 @@ export class ImageDescriptionService
                                     }
                                 }
                             ]
-                        }]
+                        }],
+
                     })
                 });
 
@@ -315,6 +330,87 @@ export class ImageDescriptionService
             }
         }
         throw new Error("Failed to recognize image with Google Gemini after 3 attempts");
+    }
+
+    private async requestWithFlux(
+        imageUrl: string,
+        imageData: Buffer | null,
+        prompt: string,
+        isGif: boolean
+    ): Promise<string> {
+        for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+                elizaLogger.log("Making Flux API request, attempt " + (attempt + 1));
+
+                // Use the imageData that was already fetched
+                let base64Image: string;
+                if (imageData) {
+                    base64Image = imageData.toString("base64");
+                } else {
+                    // Fallback to fetching if somehow imageData is null
+                    const response = await fetch(imageUrl);
+                    const buffer = await response.arrayBuffer();
+                    base64Image = Buffer.from(buffer).toString("base64");
+                }
+
+                const endpoint = "https://vision.googleapis.com";
+                const apiKey = this.runtime.getSetting("GOOGLE_VISION_API_KEY");
+
+                elizaLogger.log("Using Flux endpoint: " + endpoint);
+
+                const response = await fetch(`${endpoint}/chat/completions`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        messages: [
+                            {
+                                role: "user",
+                                content: [
+                                    {
+                                        type: "text",
+                                        text: prompt
+                                    },
+                                    {
+                                        type: "image",
+                                        image_data: {
+                                            mime_type: isGif ? "image/gif" : "image/jpeg",
+                                            data: base64Image
+                                        }
+                                    }
+                                ]
+                            }
+                        ],
+                        model: "flux-1"
+                    })
+                });
+
+                const responseText = await response.text();
+                elizaLogger.log("Flux Response Status:", response.status);
+                elizaLogger.log("Flux Raw Response:", responseText);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}, response: ${responseText}`);
+                }
+
+                const data = JSON.parse(responseText);
+                return data.choices[0].message.content;
+
+            } catch (error) {
+                elizaLogger.error(
+                    `Flux request failed (attempt ${attempt + 1}):`,
+                    {
+                        message: error.message,
+                        stack: error.stack,
+                        cause: error.cause
+                    }
+                );
+                if (attempt === 2) throw error;
+            }
+        }
+        throw new Error("Failed to recognize image with Flux after 3 attempts");
     }
 
     private async processQueue(): Promise<void> {
