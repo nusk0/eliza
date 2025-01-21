@@ -20,7 +20,7 @@ import { DEFAULT_MAX_TWEET_LENGTH } from "./environment.ts";
 // {{bio}}
 // {{lore}}
 // {{topics}}
-/*
+
 const twitterPostTemplate = `
 # Areas of Expertise
 {{interact}}
@@ -40,10 +40,9 @@ const twitterPostTemplate = `
 Write a post that is {{adjective}} about {{topic}} (without mentioning {{topic}} directly), from the perspective of {{agentName}}. Do not add commentary or acknowledge this request, just write the post.
 Your response should be 1, 2, or 3 sentences (choose the length at random).
 Your response should not contain any questions. Brief, concise statements only. The total character count MUST be less than {{maxTweetLength}}. No emojis. Use \\n\\n (double spaces) between statements if there are multiple statements in your response.`;
-*/
+
+/*
 const twitterPostTemplate = `
-
-
 # About {{agentName}} (@{{twitterUserName}}):
 {{bio}}
 {{lore}}
@@ -64,7 +63,7 @@ Recent interactions and thoughts:
 3. Makes a chaotic observation about Zaun/Piltover/recent events
 
 Your response should maintain {{agentName}}'s personality and authenticity. Make the post engaging and interesting or funny so people react to it. Do not add commentary or acknowledge this request, just write the post.
-The total character count MUST be less than {{maxTweetLength}}.`;
+The total character count MUST be less than {{maxTweetLength}}.`;*/
 export const twitterActionTemplate =
 //{{postDirections}}
     `
@@ -523,7 +522,7 @@ export class TwitterPostClient {
                 this.runtime.character.name,
                 "twitter"
             );
-        // this is testing code ####################################
+
             let tweets = [];
             // Check if we're in test mode with a specific tweet
             const testTweetId = this.runtime.getSetting("TEST_TWEET_ID");

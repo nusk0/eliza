@@ -26,7 +26,7 @@ import { buildConversationThread, sendTweet, wait } from "./utils.ts";
 export const twitterMessageHandlerTemplate =
 `
 # Areas of Expertise
-{{interact}}
+{{knowledge}}
 
 # About {{agentName}} (@{{twitterUserName}}):
 {{bio}}
@@ -53,7 +53,7 @@ Thread of Tweets You Are Replying To:
 {{formattedConversation}}
 
 {{actions}}
-# Task: Generate a post in the voice, style and perspective of {{agentName}} (@{{twitterUserName}}). You MUST include an action if the current post text includes a prompt that is similar to one of the available actions mentioned here:
+# Task: Generate a post in the voice, style and perspective of {{agentName}} (@{{twitterUserName}}), check'Thread of Tweets You Are Replying To' to avoid repeating yourself. You MUST include an action if the current post text includes a prompt that is similar to one of the available actions mentioned here:
 {{actionNames}}
 Here is the current post text again. Remember to include an action if the current post text includes a prompt that asks for one of the available actions mentioned above (does not need to be exact)
 {{currentPost}}

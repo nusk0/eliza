@@ -1644,7 +1644,7 @@ export async function generateTweetActions({
                 context,
                 modelClass,
             });
-
+            console.log("NEW TWEET YO:\n" + response);
 
             const { actions } = parseActionResponseFromText(response.trim());
             if (actions) {
