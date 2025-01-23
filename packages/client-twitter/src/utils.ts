@@ -1,6 +1,7 @@
 import { Tweet } from "agent-twitter-client";
 import { getEmbeddingZeroVector } from "@elizaos/core";
-import { Content, Memory, UUID } from "@elizaos/core";
+import type { Content, Memory, UUID, IAgentRuntime } from "@elizaos/core";
+
 import { stringToUuid } from "@elizaos/core";
 import { ClientBase } from "./base";
 import { elizaLogger } from "@elizaos/core";
@@ -37,7 +38,7 @@ export async function buildConversationThread(
 ): Promise<Tweet[]> {
     const thread: Tweet[] = [];
     const visited: Set<string> = new Set();
-
+console.log("building THREAD HAHAHAHAH")
     async function processThread(currentTweet: Tweet, depth: number = 0) {
         elizaLogger.debug("Processing tweet:", {
             id: currentTweet.id,
@@ -362,4 +363,119 @@ function splitParagraph(paragraph: string, maxLength: number): string[] {
     }
 
     return chunks;
+}
+
+export async function analyzeConversation(
+    conversationId: UUID,
+    runtime: IAgentRuntime
+): Promise<void> {
+    const conversation = await runtime.databaseAdapter.getConversation(conversationId);
+
+    // Get all messages in order
+    const messages = await Promise.all(
+        JSON.parse(conversation.messageIds).map(id =>
+            runtime.messageManager.getMemoryById(id)
+        )
+    );
+
+    // Group messages by user
+    const userMessages = new Map<string, string[]>();
+    for (const message of messages) {
+        if (message.userId === runtime.agentId) continue; // Skip agent's messages
+
+        const username = message.content.username || message.userId;
+        if (!userMessages.has(username)) {
+            userMessages.set(username, []);
+        }
+        userMessages.get(username)?.push(message.content.text);
+    }
+
+    // Format conversation for per-user analysis
+    const prompt = `Analyze each user's messages in this conversation and provide a sentiment score from -1.0 (very negative) to 1.0 (very positive).
+Consider factors like: politeness, engagement, friendliness, and cooperation.
+
+Context: ${conversation.context}
+
+${Array.from(userMessages.entries()).map(([username, msgs]) =>
+    `Messages from @${username}:\n${msgs.join('\n')}`
+).join('\n\n')}
+
+Return ONLY a JSON object with usernames as keys and scores as values. Example format:
+{
+    "@user1": 0.8,
+    "@user2": -0.3
+}`;
+
+    const analysis = await runtime.generateText({
+        prompt,
+        temperature: 0.7,
+        maxTokens: 500
+    });
+
+    elizaLogger.log("User sentiment scores:", analysis);
+
+    try {
+        const sentimentScores = JSON.parse(analysis);
+
+        // Update conversation with analysis
+        await runtime.databaseAdapter.updateConversation({
+            id: conversationId,
+            analysis,
+            status: 'CLOSED'
+        });
+
+        // Update user rapport based on sentiment scores
+        for (const [username, score] of Object.entries(sentimentScores)) {
+            const userId = messages.find(m => m.content.username === username.replace('@', ''))?.userId;
+            if (userId) {
+                await runtime.databaseAdapter.updateUserRapport({
+                    userId,
+                    agentId: runtime.agentId,
+                    sentimentScore: score as number
+                });
+            }
+        }
+    } catch (error) {
+        elizaLogger.error("Error parsing sentiment analysis:", error);
+    }
+}
+
+export async function isConversationDone(
+    conversationId: UUID,
+    runtime: IAgentRuntime
+): Promise<boolean> {
+    const conversation = await runtime.databaseAdapter.getConversation(conversationId);
+    const lastMessageTime = new Date(conversation.lastMessageAt);
+    const now = new Date();
+
+    const timeInactive = now.getTime() - lastMessageTime.getTime();
+    if (timeInactive > 45 * 60 * 1000) {
+        elizaLogger.log("Conversation inactive for 45 minutes, marking as done");
+        return true;
+    }
+
+    return false;
+}
+
+export async function closeConversation(
+    conversationId: UUID,
+    runtime: IAgentRuntime
+): Promise<void> {
+    await runtime.databaseAdapter.updateConversation({
+        id: conversationId,
+        status: 'CLOSED',
+        closedAt: new Date()
+    });
+
+    await analyzeConversation(conversationId, runtime);
+}
+
+export async function checkAndCloseConversation(
+    conversationId: UUID,
+    runtime: IAgentRuntime
+): Promise<void> {
+    if (await isConversationDone(conversationId, runtime)) {
+        elizaLogger.log("Closing conversation:", conversationId);
+        await closeConversation(conversationId, runtime);
+    }
 }

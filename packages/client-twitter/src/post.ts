@@ -781,11 +781,31 @@ export class TwitterPostClient {
 
                     if (actionResponse.reply) {
                         try {
-                            await this.handleTextOnlyReply(
-                                tweet,
-                                tweetState,
-                                executedActions
-                            );
+                            const isTestMode = this.runtime.getSetting("TEST_MODE") === "true";
+                            if (isTestMode) {
+                                elizaLogger.log("Test mode: Simulating reply generation for tweet", {
+                                    tweetId: tweet.id,
+                                    author: tweet.username,
+                                    text: tweet.text?.substring(0, 50) + "..."
+                                });
+                                // Still generate the reply content but don't send it
+                                const replyContent = await this.handleTextOnlyReply(
+                                    tweet,
+                                    tweetState,
+                                    executedActions,
+                                    true // Add an isTestMode parameter
+                                );
+                                if (replyContent) {
+                                    elizaLogger.info(`Test mode: Would have replied to tweet ${tweet.id} with: ${replyContent}`);
+                                    executedActions.push("reply (simulated)");
+                                }
+                            } else {
+                                await this.handleTextOnlyReply(
+                                    tweet,
+                                    tweetState,
+                                    executedActions
+                                );
+                            }
                         } catch (error) {
                             elizaLogger.error(
                                 `Error replying to tweet ${tweet.id}:`,
@@ -849,8 +869,9 @@ export class TwitterPostClient {
     private async handleTextOnlyReply(
         tweet: Tweet,
         tweetState: any,
-        executedActions: string[]
-    ) {
+        executedActions: string[],
+        isTestMode: boolean = false
+    ): Promise<string | null> {
         try {
             // Build conversation thread for context
             const thread = await buildConversationThread(tweet, this.client);
@@ -921,21 +942,26 @@ export class TwitterPostClient {
                         ?.twitterMessageHandlerTemplate ||
                     twitterMessageHandlerTemplate,
             });
-            console.log("replyText", replyText)
+            //console.log("", replyText)
             if (!replyText) {
                 elizaLogger.error("Failed to generate valid reply content");
-                return;
+                return null;
             }
 
-            elizaLogger.debug("Final reply text to be sent:", replyText);
 
-            // Send the tweet through request queue
+            // When ready to send the reply
+            if (isTestMode) {
+                elizaLogger.log("Test mode: Generated reply content:", {
+                    replyText,
+                    inReplyTo: tweet.id,
+                    author: tweet.username
+                });
+                return replyText; // Return the content without sending
+            }
+
+            // Actual sending logic
             const result = await this.client.requestQueue.add(
-                async () =>
-                    await this.client.twitterClient.sendTweet(
-                        replyText,
-                        tweet.id
-                    )
+                async () => await this.client.twitterClient.sendTweet(replyText, tweet.id)
             );
 
             const body = await result.json();
@@ -952,8 +978,11 @@ export class TwitterPostClient {
             } else {
                 elizaLogger.error("Tweet reply creation failed:", body);
             }
+
+            return replyText;
         } catch (error) {
             elizaLogger.error("Error in handleTextOnlyReply:", error);
+            return null;
         }
     }
 

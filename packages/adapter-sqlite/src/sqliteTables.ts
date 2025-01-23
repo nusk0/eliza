@@ -41,6 +41,19 @@ CREATE TABLE IF NOT EXISTS "goals" (
     "objectives" TEXT DEFAULT '[]' NOT NULL CHECK(json_valid("objectives")) -- Ensuring objectives is a valid JSON array
 );
 
+
+CREATE TABLE IF NOT EXISTS "user_rapport" (
+    "id" TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "agentId" TEXT NOT NULL,
+    "score" FLOAT DEFAULT 0.0,
+    "lastUpdated" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "interactionCount" INTEGER DEFAULT 0,
+    FOREIGN KEY ("userId") REFERENCES "accounts"("id"),
+    FOREIGN KEY ("agentId") REFERENCES "accounts"("id"),
+    UNIQUE("userId", "agentId")
+);
+
 -- Table: logs
 CREATE TABLE IF NOT EXISTS "logs" (
     "id" TEXT PRIMARY KEY,
@@ -49,6 +62,19 @@ CREATE TABLE IF NOT EXISTS "logs" (
     "body" TEXT NOT NULL,
     "type" TEXT NOT NULL,
     "roomId" TEXT NOT NULL
+);
+
+-- Table: conversations
+CREATE TABLE IF NOT EXISTS "conversations" (
+    "id" TEXT PRIMARY KEY,
+    "rootTweetId" TEXT NOT NULL,
+    "messageIds" TEXT NOT NULL CHECK(json_valid(messageIds)), -- JSON array string
+    "participantIds" TEXT NOT NULL CHECK(json_valid(participantIds)), -- JSON array string
+    "startedAt" TIMESTAMP,
+    "lastMessageAt" TIMESTAMP,
+    "context" TEXT,
+    "agentId" TEXT NOT NULL,
+    FOREIGN KEY ("agentId") REFERENCES "accounts"("id")
 );
 
 -- Table: participants
@@ -92,6 +118,22 @@ CREATE TABLE IF NOT EXISTS "cache" (
     PRIMARY KEY ("key", "agentId")
 );
 
+-- Table: knowledge
+CREATE TABLE IF NOT EXISTS "knowledge" (
+    "id" TEXT PRIMARY KEY,
+    "agentId" TEXT,
+    "content" TEXT NOT NULL CHECK(json_valid("content")),
+    "embedding" BLOB,
+    "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "isMain" INTEGER DEFAULT 0,
+    "originalId" TEXT,
+    "chunkIndex" INTEGER,
+    "isShared" INTEGER DEFAULT 0,
+    FOREIGN KEY ("agentId") REFERENCES "accounts"("id"),
+    FOREIGN KEY ("originalId") REFERENCES "knowledge"("id"),
+    CHECK((isShared = 1 AND agentId IS NULL) OR (isShared = 0 AND agentId IS NOT NULL))
+);
+
 -- Index: relationships_id_key
 CREATE UNIQUE INDEX IF NOT EXISTS "relationships_id_key" ON "relationships" ("id");
 
@@ -100,5 +142,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS "memories_id_key" ON "memories" ("id");
 
 -- Index: participants_id_key
 CREATE UNIQUE INDEX IF NOT EXISTS "participants_id_key" ON "participants" ("id");
+
+-- Index: knowledge
+-- Index: user_rapport_user_agent
+CREATE INDEX IF NOT EXISTS "user_rapport_user_agent" ON "user_rapport" ("userId", "agentId");
+CREATE INDEX IF NOT EXISTS "knowledge_agent_key" ON "knowledge" ("agentId");
+CREATE INDEX IF NOT EXISTS "knowledge_agent_main_key" ON "knowledge" ("agentId", "isMain");
+CREATE INDEX IF NOT EXISTS "knowledge_original_key" ON "knowledge" ("originalId");
+CREATE INDEX IF NOT EXISTS "knowledge_content_key" ON "knowledge"
+    ((json_extract(content, '$.text')))
+    WHERE json_extract(content, '$.text') IS NOT NULL;
+CREATE INDEX IF NOT EXISTS "knowledge_created_key" ON "knowledge" ("agentId", "createdAt");
+CREATE INDEX IF NOT EXISTS "knowledge_shared_key" ON "knowledge" ("isShared");
 
 COMMIT;`;

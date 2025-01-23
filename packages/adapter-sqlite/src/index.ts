@@ -16,7 +16,14 @@ import { Database } from "better-sqlite3";
 import { v4 } from "uuid";
 import { load } from "./sqlite_vec.ts";
 import { sqliteTables } from "./sqliteTables.ts";
-
+interface RapportScore {
+    id: UUID;
+    userId: UUID;
+    agentId: UUID;
+    score: number;
+    lastUpdated: Date;
+    interactionCount: number;
+}
 export class SqliteDatabaseAdapter
     extends DatabaseAdapter<Database>
     implements IDatabaseCacheAdapter
@@ -707,4 +714,65 @@ export class SqliteDatabaseAdapter
             return false;
         }
     }
+    async getUserRapport(userId: UUID, agentId: UUID): Promise<RapportScore | null> {
+        const sql = `
+            SELECT * FROM user_rapport
+            WHERE userId = ? AND agentId = ?
+        `;
+
+        const result = this.db.prepare(sql).get(userId, agentId) as RapportScore | undefined;
+        
+        if (!result) return null;
+        
+        return {
+            id: result.id,
+            userId: result.userId,
+            agentId: result.agentId,
+            score: result.score,
+            lastUpdated: new Date(result.lastUpdated),
+            interactionCount: result.interactionCount
+        };
+    }
+    async updateUserRapport(params: {
+        userId: UUID;
+        agentId: UUID;
+        score: number;
+    }): Promise<void> {
+        const existingRapport = await this.getUserRapport(params.userId, params.agentId);
+
+        if (!existingRapport) {
+            // Insert new rapport
+            const sql = `
+                INSERT INTO user_rapport (id, userId, agentId, score, interactionCount)
+                VALUES (?, ?, ?, ?, 1)
+            `;
+            this.db.prepare(sql).run(v4(), params.userId, params.agentId, params.score);
+        } else {
+            // Update existing rapport
+            const sql = `
+                UPDATE user_rapport
+                SET score = ?,
+                    interactionCount = interactionCount + 1,
+                    lastUpdated = CURRENT_TIMESTAMP
+                WHERE userId = ? AND agentId = ?
+            `;
+            this.db.prepare(sql).run(params.score, params.userId, params.agentId);
+        }
+    }
+
+    async getAllUserRapports(userId: UUID): Promise<RapportScore[]> {
+        const sql = `
+            SELECT * FROM user_rapport
+            WHERE userId = ?
+            ORDER BY score DESC
+        `;
+
+        const results = this.db.prepare(sql).all(userId) as RapportScore[];
+        
+        return results.map(result => ({
+            ...result,
+            lastUpdated: new Date(result.lastUpdated)
+        }));
+    }
 }
+

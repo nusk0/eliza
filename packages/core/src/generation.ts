@@ -540,7 +540,7 @@ export async function generateText({
                     apiKey: apiKey,
                     baseURL: endpoint,
                 });
-                console.log("generating with VENICE, THIS IS THE CONTEXT HAHAHAHGAH ####",context)
+                //console.log("generating with VENICE, THIS IS THE CONTEXT HAHAHAHGAH ####",context)
                 const { text: veniceResponse } = await aiGenerateText({
                     model: venice.languageModel(model),
                     prompt: context,
@@ -1635,7 +1635,7 @@ export async function generateTweetActions({
     let retryDelay = 1000;
 
     // Add this line to see the context
-    console.log("Tweet Actions Context:", context);
+    //console.log("Tweet Actions Context:", context);
 
     while (true) {
         try {

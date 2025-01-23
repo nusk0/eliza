@@ -3,7 +3,7 @@ import { Models, ModelProviderName, ModelClass } from "./types.ts";
 
 export const models: Models = {
     [ModelProviderName.OPENAI]: {
-        endpoint: "https://api.openai.com/v1",
+        endpoint: settings.OPENAI_API_URL || "https://api.openai.com/v1",
         settings: {
             stop: [],
             maxInputTokens: 128000,
@@ -457,7 +457,7 @@ export const models: Models = {
             stop: [],
             maxInputTokens: 128000,
             maxOutputTokens: 8192,
-            temperature: 0.7,
+            temperature: 0.6,
         },
         model: {
             [ModelClass.SMALL]: settings.SMALL_VENICE_MODEL || "llama-3.3-70b",
@@ -486,11 +486,12 @@ export const models: Models = {
                 "Meta-Llama-3-1-405B-Instruct-FP8",
         },
     },
+   
 };
 
 export function getModel(provider: ModelProviderName, type: ModelClass) {
     return models[provider].model[type];
-}
+} 
 
 export function getEndpoint(provider: ModelProviderName) {
     return models[provider].endpoint;
