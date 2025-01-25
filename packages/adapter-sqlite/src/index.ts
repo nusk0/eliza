@@ -33,6 +33,11 @@ export class SqliteDatabaseAdapter
     extends DatabaseAdapter<Database>
     implements IDatabaseCacheAdapter
 {
+    constructor(db: Database) {
+        super();
+        this.db = db;
+    }
+
     async getRoom(roomId: UUID): Promise<UUID | null> {
         const sql = "SELECT id FROM rooms WHERE id = ?";
         const room = this.db.prepare(sql).get(roomId) as
@@ -69,7 +74,28 @@ export class SqliteDatabaseAdapter
             | undefined;
         return res?.userState ?? null;
     }
-
+    async getConversationMessages(conversationId: UUID): Promise<Memory[]> {
+        const conversation = await this.getConversation(conversationId);
+        if (!conversation) return [];
+  
+        const messageIds = JSON.parse(conversation.messageIds);
+        const messages = await Promise.all(
+            messageIds.map(id => this.getMemoryById(id))
+        );
+        
+        // Filter out any null messages and ensure proper timestamp handling
+        return messages
+            .filter((m): m is Memory => m !== null)
+            .map(memory => ({
+                ...memory,
+                createdAt: typeof memory.createdAt === 'string' 
+                    ? Date.parse(memory.createdAt)
+                    : typeof memory.createdAt === 'object' && memory.createdAt 
+                        ? (memory.createdAt as Date).getTime()
+                        : memory.createdAt
+            }))
+            .sort((a, b) => Number(a.createdAt) - Number(b.createdAt));
+    }
     async setParticipantUserState(
         roomId: UUID,
         userId: UUID,
