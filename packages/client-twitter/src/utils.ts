@@ -32,13 +32,23 @@ export const isValidTweet = (tweet: Tweet): boolean => {
 };
 
 export async function buildConversationThread(
+    
     tweet: Tweet,
     client: ClientBase,
     maxReplies: number = 10
 ): Promise<Tweet[]> {
+    elizaLogger.log("1")
     const thread: Tweet[] = [];
+    elizaLogger.log("2")
     const visited: Set<string> = new Set();
-console.log("building THREAD HAHAHAHAH")
+    elizaLogger.log("3")
+    const conversationId = stringToUuid(tweet.conversationId + "-" + client.runtime.agentId);
+    elizaLogger.log("4")
+    const existingConversation = await client.runtime.databaseAdapter.getConversation(conversationId);
+    elizaLogger.log("5")
+    console.log("Starting to build conversation thread");
+    console.log("building THREAD")
+
     async function processThread(currentTweet: Tweet, depth: number = 0) {
         elizaLogger.debug("Processing tweet:", {
             id: currentTweet.id,
@@ -155,12 +165,72 @@ console.log("building THREAD HAHAHAHAH")
 
     await processThread(tweet, 0);
 
-    elizaLogger.debug("Final thread built:", {
+    // After thread is built, store conversation
+    const messageIds = thread.map(t =>
+        stringToUuid(t.id + "-" + client.runtime.agentId)
+    );
+
+    const participantIds = [...new Set(thread.map(t =>
+        t.userId === client.profile.id
+            ? client.runtime.agentId
+            : stringToUuid(t.userId)
+    ))];
+
+    // Format conversation for analysis
+    const formattedConversation = thread.map(tweet => `@${tweet.username}: ${tweet.text}`)
+        .join("\n");
+
+    elizaLogger.log("Conversation thread built:", {
+        messageCount: thread.length,
+        participants: thread.map(t => t.username).filter((v, i, a) => a.indexOf(v) === i),
+        messageIds: messageIds,
+        conversationId: conversationId
+    });
+
+    if (existingConversation) {
+        // Parse existing JSON arrays
+        elizaLogger.log("Updating existing conversation", {
+            id: conversationId,
+            newMessageCount: messageIds.length
+        });
+        const existingMessageIds = JSON.parse(existingConversation.messageIds);
+        const existingParticipantIds = JSON.parse(existingConversation.participantIds);
+
+        await client.runtime.databaseAdapter.updateConversation({
+            id: conversationId,
+            messageIds: JSON.stringify([...new Set([...existingMessageIds, ...messageIds])]),
+            participantIds: JSON.stringify([...new Set([...existingParticipantIds, ...participantIds])]),
+            lastMessageAt: new Date(Math.max(
+                ...thread.map(t => t.timestamp * 1000),
+                existingConversation.lastMessageAt.getTime()
+            )),
+            context: formattedConversation
+        });
+    } else {
+        elizaLogger.log("Creating new conversation", {
+            id: conversationId,
+            messageCount: messageIds.length,
+            participantCount: participantIds.length
+        });
+        await client.runtime.databaseAdapter.storeConversation({
+            id: conversationId,
+            rootTweetId: thread[0].id,
+            messageIds: JSON.stringify(messageIds),
+            participantIds: JSON.stringify(participantIds),
+            startedAt: new Date(thread[0].timestamp * 1000),
+            lastMessageAt: new Date(thread[thread.length - 1].timestamp * 1000),
+            context: formattedConversation,
+            agentId: client.runtime.agentId
+        });
+    }
+
+    elizaLogger.log("Final thread details:", {
         totalTweets: thread.length,
-        tweetIds: thread.map((t) => ({
+        tweetDetails: thread.map(t => ({
             id: t.id,
-            text: t.text?.slice(0, 50),
-        })),
+            author: t.username,
+            text: t.text?.slice(0, 50) + "..."
+        }))
     });
 
     return thread;

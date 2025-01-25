@@ -304,7 +304,7 @@ export class TwitterInteractionClient {
                         tweet.name,
                         "twitter"
                     );
-                    console.log("building THREAD")
+                    console.log("building THREAD inside interactions")
                     const thread = await buildConversationThread(
                         tweet,
                         this.client
@@ -542,7 +542,7 @@ export class TwitterInteractionClient {
         const visited: Set<string> = new Set();
         const conversationId = stringToUuid(tweet.conversationId + "-" + this.runtime.agentId);
         const existingConversation = await this.runtime.databaseAdapter.getConversation(conversationId);
-        elizaLogger.log("Starting to build conversation thread");
+        console.log("Starting to build conversation thread");
         console.log("building THREAD")
         async function processThread(currentTweet: Tweet, depth: number = 0) {
             elizaLogger.log("Processing tweet:", {
@@ -678,7 +678,6 @@ elizaLogger.log("Conversation thread built:", {
     messageIds: messageIds,
     conversationId: conversationId
 });
-
 
 
     if (existingConversation) {

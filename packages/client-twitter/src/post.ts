@@ -644,7 +644,7 @@ export class TwitterPostClient {
 
                     if (actionResponse.quote) {
                         try {
-                            // Build conversation thread for context
+                            console.log("Starting to build conversation thread inside post");
                             const thread = await buildConversationThread(
                                 tweet,
                                 this.client
@@ -874,7 +874,9 @@ export class TwitterPostClient {
     ): Promise<string | null> {
         try {
             // Build conversation thread for context
+            elizaLogger.log("Starting to build conversation thread inside reply")
             const thread = await buildConversationThread(tweet, this.client);
+            elizaLogger.log("1")
             const formattedConversation = thread
                 .map(
                     (t) =>
@@ -883,6 +885,7 @@ export class TwitterPostClient {
                 .join("\n\n");
 
             // Generate image descriptions if present
+            elizaLogger.log("2")
             const imageDescriptions = [];
             if (tweet.photos?.length > 0) {
                 elizaLogger.log("Processing images in tweet for context");
@@ -911,7 +914,7 @@ export class TwitterPostClient {
                     elizaLogger.error("Error fetching quoted tweet:", error);
                 }
             }
-
+            elizaLogger.log("3")
             // Compose rich state with all context
             const enrichedState = await this.runtime.composeState(
                 {
@@ -942,12 +945,13 @@ export class TwitterPostClient {
                         ?.twitterMessageHandlerTemplate ||
                     twitterMessageHandlerTemplate,
             });
+            elizaLogger.log("4")
             //console.log("", replyText)
             if (!replyText) {
                 elizaLogger.error("Failed to generate valid reply content");
                 return null;
             }
-
+            elizaLogger.log("5")
 
             // When ready to send the reply
             if (isTestMode) {
@@ -958,7 +962,7 @@ export class TwitterPostClient {
                 });
                 return replyText; // Return the content without sending
             }
-
+            
             // Actual sending logic
             const result = await this.client.requestQueue.add(
                 async () => await this.client.twitterClient.sendTweet(replyText, tweet.id)

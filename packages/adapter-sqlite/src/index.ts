@@ -16,14 +16,19 @@ import { Database } from "better-sqlite3";
 import { v4 } from "uuid";
 import { load } from "./sqlite_vec.ts";
 import { sqliteTables } from "./sqliteTables.ts";
-interface RapportScore {
+
+interface Conversation {
     id: UUID;
-    userId: UUID;
+    rootTweetId: string;
+    messageIds: string;  // JSON string of UUIDs
+    participantIds: string;  // JSON string of UUIDs
+    startedAt: Date;
+    lastMessageAt: Date;
+    context: string;
     agentId: UUID;
-    score: number;
-    lastUpdated: Date;
-    interactionCount: number;
+    status?: string;
 }
+
 export class SqliteDatabaseAdapter
     extends DatabaseAdapter<Database>
     implements IDatabaseCacheAdapter
@@ -74,12 +79,6 @@ export class SqliteDatabaseAdapter
             "UPDATE participants SET userState = ? WHERE roomId = ? AND userId = ?"
         );
         stmt.run(state, roomId, userId);
-    }
-
-    constructor(db: Database) {
-        super();
-        this.db = db;
-        load(db);
     }
 
     async init() {
@@ -156,18 +155,28 @@ export class SqliteDatabaseAdapter
         agentId: UUID;
         roomIds: UUID[];
         tableName: string;
+        limit?: number;
     }): Promise<Memory[]> {
         if (!params.tableName) {
             // default to messages
             params.tableName = "messages";
         }
+
         const placeholders = params.roomIds.map(() => "?").join(", ");
-        const sql = `SELECT * FROM memories WHERE type = ? AND agentId = ? AND roomId IN (${placeholders})`;
+        let sql = `SELECT * FROM memories WHERE type = ? AND agentId = ? AND roomId IN (${placeholders})`;
+
         const queryParams = [
             params.tableName,
             params.agentId,
             ...params.roomIds,
         ];
+
+        // Add ordering and limit
+        sql += ` ORDER BY createdAt DESC`;
+        if (params.limit) {
+            sql += ` LIMIT ?`;
+            queryParams.push(params.limit.toString());
+        }
 
         const stmt = this.db.prepare(sql);
         const rows = stmt.all(...queryParams) as (Memory & {
@@ -196,6 +205,33 @@ export class SqliteDatabaseAdapter
         return null;
     }
 
+    async getMemoriesByIds(
+        memoryIds: UUID[],
+        tableName?: string
+    ): Promise<Memory[]> {
+        if (memoryIds.length === 0) return [];
+        const queryParams: any[] = [];
+        const placeholders = memoryIds.map(() => "?").join(",");
+        let sql = `SELECT * FROM memories WHERE id IN (${placeholders})`;
+        queryParams.push(...memoryIds);
+
+        if (tableName) {
+            sql += ` AND type = ?`;
+            queryParams.push(tableName);
+        }
+
+        const memories = this.db.prepare(sql).all(...queryParams) as Memory[];
+
+        return memories.map((memory) => ({
+            ...memory,
+            createdAt:
+                typeof memory.createdAt === "string"
+                    ? Date.parse(memory.createdAt as string)
+                    : memory.createdAt,
+            content: JSON.parse(memory.content as unknown as string),
+        }));
+    }
+
     async createMemory(memory: Memory, tableName: string): Promise<void> {
         // Delete any existing memory with the same ID first
         // const deleteSql = `DELETE FROM memories WHERE id = ? AND type = ?`;
@@ -222,19 +258,27 @@ export class SqliteDatabaseAdapter
         const content = JSON.stringify(memory.content);
         const createdAt = memory.createdAt ?? Date.now();
 
+        let embeddingValue: Float32Array = new Float32Array(384);
+        // If embedding is not available, we just load an array with a length of 384
+        if (memory?.embedding && memory?.embedding?.length > 0) {
+            embeddingValue = new Float32Array(memory.embedding);
+        }
+
         // Insert the memory with the appropriate 'unique' value
         const sql = `INSERT OR REPLACE INTO memories (id, type, content, embedding, userId, roomId, agentId, \`unique\`, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-        this.db.prepare(sql).run(
-            memory.id ?? v4(),
-            tableName,
-            content,
-            new Float32Array(memory.embedding!), // Store as Float32Array
-            memory.userId,
-            memory.roomId,
-            memory.agentId,
-            isUnique ? 1 : 0,
-            createdAt
-        );
+        this.db
+            .prepare(sql)
+            .run(
+                memory.id ?? v4(),
+                tableName,
+                content,
+                embeddingValue,
+                memory.userId,
+                memory.roomId,
+                memory.agentId,
+                isUnique ? 1 : 0,
+                createdAt
+            );
     }
 
     async searchMemories(params: {
@@ -714,65 +758,83 @@ export class SqliteDatabaseAdapter
             return false;
         }
     }
-    async getUserRapport(userId: UUID, agentId: UUID): Promise<RapportScore | null> {
-        const sql = `
-            SELECT * FROM user_rapport
-            WHERE userId = ? AND agentId = ?
-        `;
 
-        const result = this.db.prepare(sql).get(userId, agentId) as RapportScore | undefined;
+    async getConversation(conversationId: UUID): Promise<Conversation | null> {
+        const sql = "SELECT * FROM conversations WHERE id = ?";
+        const conversation = this.db.prepare(sql).get(conversationId) as Conversation | undefined;
         
-        if (!result) return null;
+        if (!conversation) return null;
         
         return {
-            id: result.id,
-            userId: result.userId,
-            agentId: result.agentId,
-            score: result.score,
-            lastUpdated: new Date(result.lastUpdated),
-            interactionCount: result.interactionCount
+            ...conversation,
+            startedAt: new Date(conversation.startedAt),
+            lastMessageAt: new Date(conversation.lastMessageAt)
         };
     }
-    async updateUserRapport(params: {
-        userId: UUID;
-        agentId: UUID;
-        score: number;
-    }): Promise<void> {
-        const existingRapport = await this.getUserRapport(params.userId, params.agentId);
 
-        if (!existingRapport) {
-            // Insert new rapport
-            const sql = `
-                INSERT INTO user_rapport (id, userId, agentId, score, interactionCount)
-                VALUES (?, ?, ?, ?, 1)
-            `;
-            this.db.prepare(sql).run(v4(), params.userId, params.agentId, params.score);
-        } else {
-            // Update existing rapport
-            const sql = `
-                UPDATE user_rapport
-                SET score = ?,
-                    interactionCount = interactionCount + 1,
-                    lastUpdated = CURRENT_TIMESTAMP
-                WHERE userId = ? AND agentId = ?
-            `;
-            this.db.prepare(sql).run(params.score, params.userId, params.agentId);
-        }
+    async storeConversation(conversation: Conversation): Promise<void> {
+        const sql = `
+            INSERT INTO conversations (
+                id, rootTweetId, messageIds, participantIds, 
+                startedAt, lastMessageAt, context, agentId, status
+            ) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+        
+        this.db.prepare(sql).run(
+            conversation.id,
+            conversation.rootTweetId,
+            conversation.messageIds,
+            conversation.participantIds,
+            conversation.startedAt.getTime(),
+            conversation.lastMessageAt.getTime(),
+            conversation.context,
+            conversation.agentId,
+            conversation.status || 'ACTIVE'
+        );
     }
 
-    async getAllUserRapports(userId: UUID): Promise<RapportScore[]> {
-        const sql = `
-            SELECT * FROM user_rapport
-            WHERE userId = ?
-            ORDER BY score DESC
-        `;
+    async updateConversation(conversation: Partial<Conversation> & { id: UUID }): Promise<void> {
+        const updates: string[] = [];
+        const values: any[] = [];
 
-        const results = this.db.prepare(sql).all(userId) as RapportScore[];
+        if (conversation.messageIds !== undefined) {
+            updates.push('messageIds = ?');
+            values.push(conversation.messageIds);
+        }
+        if (conversation.participantIds !== undefined) {
+            updates.push('participantIds = ?');
+            values.push(conversation.participantIds);
+        }
+        if (conversation.lastMessageAt !== undefined) {
+            updates.push('lastMessageAt = ?');
+            values.push(conversation.lastMessageAt.getTime());
+        }
+        if (conversation.context !== undefined) {
+            updates.push('context = ?');
+            values.push(conversation.context);
+        }
+        if (conversation.status !== undefined) {
+            updates.push('status = ?');
+            values.push(conversation.status);
+        }
+
+        if (updates.length === 0) return;
+
+        const sql = `UPDATE conversations SET ${updates.join(', ')} WHERE id = ?`;
+        values.push(conversation.id);
+
+        this.db.prepare(sql).run(...values);
+    }
+
+    async getConversationsByStatus(status: string): Promise<Conversation[]> {
+        const sql = "SELECT * FROM conversations WHERE status = ?";
+        const conversations = this.db.prepare(sql).all(status) as Conversation[];
         
-        return results.map(result => ({
-            ...result,
-            lastUpdated: new Date(result.lastUpdated)
+        return conversations.map(conversation => ({
+            ...conversation,
+            startedAt: new Date(conversation.startedAt),
+            lastMessageAt: new Date(conversation.lastMessageAt)
         }));
     }
 }
-
