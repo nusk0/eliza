@@ -2,6 +2,7 @@ export const sqliteTables = `
 PRAGMA foreign_keys=OFF;
 BEGIN TRANSACTION;
 
+
 -- Table: accounts
 CREATE TABLE IF NOT EXISTS "accounts" (
     "id" TEXT PRIMARY KEY,
@@ -74,6 +75,7 @@ CREATE TABLE IF NOT EXISTS "conversations" (
     "lastMessageAt" TIMESTAMP,
     "context" TEXT,
     "agentId" TEXT NOT NULL,
+    "status" TEXT DEFAULT 'ACTIVE',
     FOREIGN KEY ("agentId") REFERENCES "accounts"("id")
 );
 

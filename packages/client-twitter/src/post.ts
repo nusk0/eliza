@@ -890,12 +890,12 @@ export class TwitterPostClient {
             if (tweet.photos?.length > 0) {
                 elizaLogger.log("Processing images in tweet for context");
                 for (const photo of tweet.photos) {
-                    const description = await this.runtime
-                        .getService<IImageDescriptionService>(
-                            ServiceType.IMAGE_DESCRIPTION
-                        )
-                        .describeImage(photo.url);
-                    imageDescriptions.push(description);
+                        const description = await this.runtime
+                            .getService<IImageDescriptionService>(
+                                ServiceType.IMAGE_DESCRIPTION
+                            )
+                            .describeImage(photo.url);
+                        imageDescriptions.push(description);
                 }
             }
 
@@ -916,74 +916,74 @@ export class TwitterPostClient {
             }
             elizaLogger.log("3")
             // Compose rich state with all context
-            const enrichedState = await this.runtime.composeState(
-                {
-                    userId: this.runtime.agentId,
-                    roomId: stringToUuid(
-                        tweet.conversationId + "-" + this.runtime.agentId
-                    ),
-                    agentId: this.runtime.agentId,
-                    content: { text: tweet.text, action: "" },
-                },
-                {
-                    twitterUserName: this.twitterUsername,
-                    currentPost: `From @${tweet.username}: ${tweet.text}`,
-                    formattedConversation,
-                    imageContext:
-                        imageDescriptions.length > 0
-                            ? `\nImages in Tweet:\n${imageDescriptions.map((desc, i) => `Image ${i + 1}: ${desc?.description || desc?.title || 'No description available'}`).join("\n")}`
-                            : "",
-                    quotedContent,
-                }
-            );
+                const enrichedState = await this.runtime.composeState(
+                    {
+                        userId: this.runtime.agentId,
+                        roomId: stringToUuid(
+                            tweet.conversationId + "-" + this.runtime.agentId
+                        ),
+                        agentId: this.runtime.agentId,
+                        content: { text: tweet.text, action: "" },
+                    },
+                    {
+                        twitterUserName: this.twitterUsername,
+                        currentPost: `From @${tweet.username}: ${tweet.text}`,
+                        formattedConversation,
+                        imageContext:
+                            imageDescriptions.length > 0
+                                ? `\nImages in Tweet:\n${imageDescriptions.map((desc, i) => `Image ${i + 1}: ${desc?.description || desc?.title || 'No description available'}`).join("\n")}`
+                                : "",
+                        quotedContent,
+                    }
+                );
 
             //console.log("enrichedState INSIDE REPLY", enrichedState);
-            // Generate and clean the reply content
-            const replyText = await this.generateTweetContent(enrichedState, {
-                template:
-                    this.runtime.character.templates
-                        ?.twitterMessageHandlerTemplate ||
-                    twitterMessageHandlerTemplate,
-            });
+                // Generate and clean the reply content
+                const replyText = await this.generateTweetContent(enrichedState, {
+                    template:
+                        this.runtime.character.templates
+                            ?.twitterMessageHandlerTemplate ||
+                        twitterMessageHandlerTemplate,
+                });
             elizaLogger.log("4")
             //console.log("", replyText)
-            if (!replyText) {
-                elizaLogger.error("Failed to generate valid reply content");
-                return null;
-            }
+                if (!replyText) {
+                    elizaLogger.error("Failed to generate valid reply content");
+                    return null;
+                }
             elizaLogger.log("5")
 
-            // When ready to send the reply
-            if (isTestMode) {
-                elizaLogger.log("Test mode: Generated reply content:", {
-                    replyText,
-                    inReplyTo: tweet.id,
-                    author: tweet.username
-                });
+                // When ready to send the reply
+                if (isTestMode) {
+                    elizaLogger.log("Test mode: Generated reply content:", {
+                        replyText,
+                        inReplyTo: tweet.id,
+                        author: tweet.username
+                    });
                 return replyText; // Return the content without sending
-            }
-            
-            // Actual sending logic
-            const result = await this.client.requestQueue.add(
-                async () => await this.client.twitterClient.sendTweet(replyText, tweet.id)
-            );
+                }
 
-            const body = await result.json();
-
-            if (body?.data?.create_tweet?.tweet_results?.result) {
-                elizaLogger.log("Successfully posted reply tweet");
-                executedActions.push("reply");
-
-                // Cache generation context for debugging
-                await this.runtime.cacheManager.set(
-                    `twitter/reply_generation_${tweet.id}.txt`,
-                    `Context:\n${enrichedState}\n\nGenerated Reply:\n${replyText}`
+                // Actual sending logic
+                const result = await this.client.requestQueue.add(
+                    async () => await this.client.twitterClient.sendTweet(replyText, tweet.id)
                 );
-            } else {
-                elizaLogger.error("Tweet reply creation failed:", body);
-            }
 
-            return replyText;
+                const body = await result.json();
+
+                if (body?.data?.create_tweet?.tweet_results?.result) {
+                    elizaLogger.log("Successfully posted reply tweet");
+                    executedActions.push("reply");
+
+                    // Cache generation context for debugging
+                    await this.runtime.cacheManager.set(
+                        `twitter/reply_generation_${tweet.id}.txt`,
+                        `Context:\n${enrichedState}\n\nGenerated Reply:\n${replyText}`
+                    );
+                } else {
+                    elizaLogger.error("Tweet reply creation failed:", body);
+                }
+
+                return replyText;
         } catch (error) {
             elizaLogger.error("Error in handleTextOnlyReply:", error);
             return null;

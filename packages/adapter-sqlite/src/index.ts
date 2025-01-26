@@ -36,6 +36,8 @@ export class SqliteDatabaseAdapter
     constructor(db: Database) {
         super();
         this.db = db;
+        // Load SQLite vector extension functions
+        load(db);
     }
 
     async getRoom(roomId: UUID): Promise<UUID | null> {
@@ -786,6 +788,7 @@ export class SqliteDatabaseAdapter
     }
 
     async getConversation(conversationId: UUID): Promise<Conversation | null> {
+        console.log("getConversation")
         const sql = "SELECT * FROM conversations WHERE id = ?";
         const conversation = this.db.prepare(sql).get(conversationId) as Conversation | undefined;
         
@@ -825,6 +828,18 @@ export class SqliteDatabaseAdapter
         const values: any[] = [];
 
         if (conversation.messageIds !== undefined) {
+            const existingConversation = await this.getConversation(conversation.id);
+            if (existingConversation) {
+                const existingIds = JSON.parse(existingConversation.messageIds);
+                const allNewIds = JSON.parse(conversation.messageIds);
+                const lastNewId = allNewIds[allNewIds.length - 1]; // Get the last message ID
+                console.log("added new message ", lastNewId);
+                
+                if (existingIds.includes(lastNewId)) {
+                    console.log("message already exists");
+                    return; // Exit early if message already exists
+                }
+            }
             updates.push('messageIds = ?');
             values.push(conversation.messageIds);
         }

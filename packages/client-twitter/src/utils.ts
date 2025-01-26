@@ -37,17 +37,11 @@ export async function buildConversationThread(
     client: ClientBase,
     maxReplies: number = 10
 ): Promise<Tweet[]> {
-    elizaLogger.log("1")
     const thread: Tweet[] = [];
-    elizaLogger.log("2")
     const visited: Set<string> = new Set();
-    elizaLogger.log("3")
     const conversationId = stringToUuid(tweet.conversationId + "-" + client.runtime.agentId);
-    elizaLogger.log("4")
     const existingConversation = await client.runtime.databaseAdapter.getConversation(conversationId);
-    elizaLogger.log("5")
     console.log("Starting to build conversation thread");
-    console.log("building THREAD")
 
     async function processThread(currentTweet: Tweet, depth: number = 0) {
         elizaLogger.debug("Processing tweet:", {
@@ -186,16 +180,17 @@ export async function buildConversationThread(
         messageIds: messageIds,
         conversationId: conversationId
     });
-
+    console.log("before creating conversation")
     if (existingConversation) {
         // Parse existing JSON arrays
         elizaLogger.log("Updating existing conversation", {
             id: conversationId,
-            newMessageCount: messageIds.length
+            newMessageCount: messageIds.length,
+            
         });
         const existingMessageIds = JSON.parse(existingConversation.messageIds);
         const existingParticipantIds = JSON.parse(existingConversation.participantIds);
-
+        console.log("inside creating conversation")
         await client.runtime.databaseAdapter.updateConversation({
             id: conversationId,
             messageIds: JSON.stringify([...new Set([...existingMessageIds, ...messageIds])]),
@@ -204,8 +199,10 @@ export async function buildConversationThread(
                 ...thread.map(t => t.timestamp * 1000),
                 existingConversation.lastMessageAt.getTime()
             )),
-            context: formattedConversation
+            context: formattedConversation,
+            status: 'ACTIVE'
         });
+        console.log("after updating conversation")
     } else {
         elizaLogger.log("Creating new conversation", {
             id: conversationId,
@@ -223,7 +220,7 @@ export async function buildConversationThread(
             agentId: client.runtime.agentId
         });
     }
-
+console.log("after creating conversation")
     elizaLogger.log("Final thread details:", {
         totalTweets: thread.length,
         tweetDetails: thread.map(t => ({
@@ -232,7 +229,10 @@ export async function buildConversationThread(
             text: t.text?.slice(0, 50) + "..."
         }))
     });
-
+    console.log("1")
+    const conversationMessagess = await client.runtime.databaseAdapter.getConversationMessages(conversationId)
+    console.log ("conversation messages", conversationMessagess)
+    console.log("3")
     return thread;
 }
 
