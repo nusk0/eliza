@@ -43,17 +43,7 @@ CREATE TABLE IF NOT EXISTS "goals" (
 );
 
 
-CREATE TABLE IF NOT EXISTS "user_rapport" (
-    "id" TEXT PRIMARY KEY,
-    "userId" TEXT NOT NULL,
-    "agentId" TEXT NOT NULL,
-    "score" FLOAT DEFAULT 0.0,
-    "lastUpdated" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "interactionCount" INTEGER DEFAULT 0,
-    FOREIGN KEY ("userId") REFERENCES "accounts"("id"),
-    FOREIGN KEY ("agentId") REFERENCES "accounts"("id"),
-    UNIQUE("userId", "agentId")
-);
+
 
 -- Table: logs
 CREATE TABLE IF NOT EXISTS "logs" (
@@ -134,6 +124,14 @@ CREATE TABLE IF NOT EXISTS "knowledge" (
     FOREIGN KEY ("agentId") REFERENCES "accounts"("id"),
     FOREIGN KEY ("originalId") REFERENCES "knowledge"("id"),
     CHECK((isShared = 1 AND agentId IS NULL) OR (isShared = 0 AND agentId IS NOT NULL))
+);
+
+-- Table: user_rapport
+CREATE TABLE IF NOT EXISTS user_rapport (
+    userId TEXT NOT NULL,
+    agentId TEXT NOT NULL,
+    score REAL NOT NULL DEFAULT 0,
+    PRIMARY KEY (userId, agentId)
 );
 
 -- Index: relationships_id_key

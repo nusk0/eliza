@@ -47,6 +47,7 @@ Recent interactions between {{agentName}} and other users:
 # Task: Generate a post/reply in the voice, style and perspective of {{agentName}} (@{{twitterUserName}}) while using the thread of tweets as additional context:
 Current Post:
 {{currentPost}}
+Here is the descriptions of images in the Current Post:
 {{imageContext}}
 
 Thread of Tweets You Are Replying To:
@@ -101,8 +102,14 @@ export class TwitterInteractionClient {
     }
 
     async start() {
-        const handleTwitterInteractionsLoop = () => {
-            this.handleTwitterInteractions();
+        const handleTwitterInteractionsLoop = async () => {
+            await this.handleTwitterInteractions();
+            console.log("handleTwitterInteractionsLoop");
+            
+            // Run checkActiveConversations right after
+            await this.checkActiveConversations();
+
+            // Schedule next iteration of both checks
             setTimeout(
                 handleTwitterInteractionsLoop,
                 Number(
@@ -110,40 +117,33 @@ export class TwitterInteractionClient {
                 ) * 1000 // Default to 2 minutes
             );
         };
-        handleTwitterInteractionsLoop();
 
-        const checkConversationsLoop = () => {
-            this.checkActiveConversations();
-            setTimeout(
-                checkConversationsLoop,
-                this.runtime.getSetting("TWITTER_POLL_INTERVAL") * 1000
-            );
-        };
-        setTimeout(() => {
-            checkConversationsLoop();
-        }, 2 * 60 * 1000); // 2 minutes offset
-    
-        }
-    
-        async checkActiveConversations() {
-            try {
-                elizaLogger.log("Checking active conversations");
-                // Get all active conversations
-                const activeConversations = await this.runtime.databaseAdapter.getConversationsByStatus('ACTIVE');
-    
-                for (const conversation of activeConversations) {
-                    const messageIds = JSON.parse(conversation.messageIds);
-                    if( isConversationDone(conversation.id, this.runtime)&&messageIds.length>=3){
-                        await analyzeConversation(conversation.id);
-                    }
-                    else{
-                        elizaLogger.log("Conversation not done yet, skipping");
-                    }
+        // Start the combined loop
+        handleTwitterInteractionsLoop();
+    }
+
+    async checkActiveConversations() {
+        try {
+            console.log("checkConversationsLoop");
+
+            elizaLogger.log("Checking active conversations");
+            // Get all active conversations
+            const activeConversations = await this.runtime.databaseAdapter.getConversationsByStatus('ACTIVE');
+
+            for (const conversation of activeConversations) {
+                const messageIds = JSON.parse(conversation.messageIds);
+
+                if( isConversationDone(conversation.id, this.runtime)&&messageIds.length>=3){
+                    await analyzeConversation(conversation.id, this.runtime);
                 }
-            } catch (error) {
-                elizaLogger.error("Error checking conversations:", error);
+                else{
+                    elizaLogger.log("Conversation not done yet, skipping");
+                }
             }
+        } catch (error) {
+            elizaLogger.error("Error checking conversations:", error);
         }
+    }
 
     async handleTwitterInteractions() {
         elizaLogger.log("Checking Twitter interactions");

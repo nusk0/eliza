@@ -115,9 +115,9 @@ Examples of {{agentName}}'s dialog and actions:
 # Capabilities
 Note that {{agentName}} is capable of reading/seeing/hearing various forms of media, including images, videos, audio, plaintext and PDFs. Recent attachments have been included above under the "Attachments" section.
 
-{{messageDirections}}
+{{postDirections}}
 
 {{recentMessages}}
 
-# Instructions: Write the next message for {{agentName}}. Include an action, if appropriate. {{actionNames}}
+# Instructions: Write the next message for {{agentName}}. Be authentic and engaging. Use *descriptive actions* if it fits the context, Include an action, if appropriate. {{actionNames}}
 ` + messageCompletionFooter;

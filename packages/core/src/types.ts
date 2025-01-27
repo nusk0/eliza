@@ -324,6 +324,12 @@ export interface State {
     /** Optional knowledge data */
     knowledgeData?: KnowledgeItem[];
 
+    /** User rapport score based on memory */
+    userRapport?: number;
+
+    /** Recent conversations specific to the current user */
+    recentUserConversations?: Memory[];
+
     /** Additional dynamic properties */
     [key: string]: unknown;
 }

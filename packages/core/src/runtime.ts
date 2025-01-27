@@ -985,6 +985,13 @@ Text: ${attachment.text}
             actorsData
         );
 
+        // Retrieve user rapport if message is from a user
+        const userRapport = message.userId !== this.agentId
+            ? (await this.databaseAdapter.getParticipantUserState(message.roomId, message.userId))
+                ? 0  // Will be retrieved from database in future implementation
+                : undefined
+            : undefined;
+
         // if bio is a string, use it. if its an array, pick one at random
         let bio = this.character.bio || "";
         if (Array.isArray(bio)) {
@@ -1149,6 +1156,7 @@ Text: ${attachment.text}
                     ? addHeader("# Attachments", formattedAttachments)
                     : "",
             ...additionalKeys,
+            userRapport,
         } as State;
 
         const actionPromises = this.actions.map(async (action: Action) => {

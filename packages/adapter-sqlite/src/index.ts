@@ -33,11 +33,19 @@ export class SqliteDatabaseAdapter
     extends DatabaseAdapter<Database>
     implements IDatabaseCacheAdapter
 {
+    public db: Database;
+
     constructor(db: Database) {
         super();
         this.db = db;
         // Load SQLite vector extension functions
-        load(db);
+        try {
+            load(db);
+            console.log("SQLite vector extension loaded successfully");
+        } catch (error) {
+            console.error("Error loading SQLite vector extension:", error);
+            throw error;
+        }
     }
 
     async getRoom(roomId: UUID): Promise<UUID | null> {
@@ -748,6 +756,22 @@ export class SqliteDatabaseAdapter
         return this.db
             .prepare(sql)
             .all(params.userId, params.userId) as Relationship[];
+    }
+    async getUserRapport(userId: UUID, agentId: UUID): Promise<number> {
+        const sql = "SELECT score FROM user_rapport WHERE userId = ? AND agentId = ?";
+        const rapport = this.db.prepare(sql).get(userId, agentId) as { score: number } | undefined;
+        
+        // Return default rapport score of 0 if none exists
+        return rapport?.score ?? 0;
+    }
+
+    async setUserRapport(userId: UUID, agentId: UUID, score: number): Promise<void> {
+        const sql = `
+            INSERT INTO user_rapport (userId, agentId, score) 
+            VALUES (?, ?, ?)
+            ON CONFLICT(userId, agentId) DO UPDATE SET score = ?
+        `;
+        this.db.prepare(sql).run(userId, agentId, score, score);
     }
 
     async getCache(params: {

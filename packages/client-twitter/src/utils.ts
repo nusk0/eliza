@@ -440,7 +440,7 @@ export async function analyzeConversation(
     runtime: IAgentRuntime
 ): Promise<void> {
     const conversation = await runtime.databaseAdapter.getConversation(conversationId);
-
+    console.log("analyzeConversation", conversation)
     // Get all messages in order
     const messages = await Promise.all(
         JSON.parse(conversation.messageIds).map(id =>
@@ -490,7 +490,6 @@ Return ONLY a JSON object with usernames as keys and scores as values. Example f
         // Update conversation with analysis
         await runtime.databaseAdapter.updateConversation({
             id: conversationId,
-            analysis,
             status: 'CLOSED'
         });
 
@@ -520,7 +519,8 @@ export async function isConversationDone(
 
     const timeInactive = now.getTime() - lastMessageTime.getTime();
     if (timeInactive > 45 * 60 * 1000) {
-        elizaLogger.log("Conversation inactive for 45 minutes, marking as done");
+        elizaLogger.log("Conversation inactive for 45 minutes");
+       
         return true;
     }
 
