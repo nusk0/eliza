@@ -106,6 +106,28 @@ export class SqliteDatabaseAdapter
             }))
             .sort((a, b) => Number(a.createdAt) - Number(b.createdAt));
     }
+
+    async getFormattedConversation(conversationId: UUID): Promise<string> {
+        const conversation = await this.getConversation(conversationId);
+        if (!conversation) return "";
+
+        const messages = await this.getConversationMessages(conversationId);
+        
+        // Format each message with timestamp
+        const formattedMessages = messages.map(msg => {
+            const timestamp = new Date(msg.createdAt).toLocaleString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+                month: "short",
+                day: "numeric"
+            });
+            const username = msg.content.username || msg.userId;
+            return `@${username} (${timestamp}):\n${msg.content.text}`;
+        });
+
+        return `Context: ${conversation.context}\n\n${formattedMessages.join('\n\n')}`;
+    }
+
     async setParticipantUserState(
         roomId: UUID,
         userId: UUID,

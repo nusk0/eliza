@@ -328,7 +328,7 @@ export interface State {
     userRapport?: number;
 
     /** Recent conversations specific to the current user */
-    recentUserConversations?: Memory[];
+    recentUserConversations?: string;
 
     /** Additional dynamic properties */
     [key: string]: unknown;
@@ -946,6 +946,22 @@ export interface IDatabaseAdapter {
     }): Promise<Relationship | null>;
 
     getRelationships(params: { userId: UUID }): Promise<Relationship[]>;
+
+    getFormattedConversation(conversationId: UUID): Promise<string>;
+
+    getConversation(conversationId: UUID): Promise<Conversation | null>;
+
+    storeConversation(conversation: Conversation): Promise<void>;
+
+    updateConversation(conversation: Partial<Conversation> & { id: UUID }): Promise<void>;
+
+    getConversationsByStatus(status: string, limit?: number): Promise<Conversation[]>;
+
+    getConversationMessages(conversationId: UUID): Promise<Memory[]>;
+
+    setUserRapport(userId: UUID, agentId: UUID, score: number): Promise<void>;
+
+    getUserRapport(userId: UUID, agentId: UUID): Promise<number>;
 }
 
 export interface IDatabaseCacheAdapter {
@@ -1256,4 +1272,26 @@ export interface ActionResponse {
 
 export interface ISlackService extends Service {
     client: any;
+}
+
+export interface Conversation {
+    id: UUID;
+    messageIds: string; // JSON string array
+    participantIds: string; // JSON string array
+    startedAt: Date;
+    lastMessageAt: Date;
+    closedAt?: Date;
+    context: string;
+    status: 'ACTIVE' | 'CLOSED';
+    agentId: UUID;
+    rootTweetId?: string;
+}
+// Encode function
+export function encodeString(str: string): string {
+    return Buffer.from(str).toString('base64');
+}
+
+// Decode function
+export function decodeString(encoded: string): string {
+    return Buffer.from(encoded, 'base64').toString();
 }

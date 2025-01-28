@@ -1,10 +1,9 @@
 import { Tweet } from "agent-twitter-client";
-import { getEmbeddingZeroVector } from "@elizaos/core";
+import { getEmbeddingZeroVector, composeContext, elizaLogger } from "@elizaos/core";
 import type { Content, Memory, UUID, IAgentRuntime } from "@elizaos/core";
 
 import { stringToUuid } from "@elizaos/core";
 import { ClientBase } from "./base";
-import { elizaLogger } from "@elizaos/core";
 import { DEFAULT_MAX_TWEET_LENGTH } from "./environment";
 import { Media } from "@elizaos/core";
 import fs from "fs";
@@ -440,46 +439,50 @@ export async function analyzeConversation(
     runtime: IAgentRuntime
 ): Promise<void> {
     const conversation = await runtime.databaseAdapter.getConversation(conversationId);
-    console.log("analyzeConversation", conversation)
-    // Get all messages in order
-    const messages = await Promise.all(
-        JSON.parse(conversation.messageIds).map(id =>
-            runtime.messageManager.getMemoryById(id)
-        )
-    );
-
-    // Group messages by user
-    const userMessages = new Map<string, string[]>();
-    for (const message of messages) {
-        if (message.userId === runtime.agentId) continue; // Skip agent's messages
-
-        const username = message.content.username || message.userId;
-        if (!userMessages.has(username)) {
-            userMessages.set(username, []);
-        }
-        userMessages.get(username)?.push(message.content.text);
+    if (!conversation) {
+        elizaLogger.error("No conversation found for analysis", conversationId);
+        return;
     }
 
+    // Get all messages in order
+    const messages = await runtime.databaseAdapter.getConversationMessages(conversationId);
+    if (messages.length === 0) {
+        elizaLogger.error("No messages found in conversation for analysis", conversationId);
+        return;
+    }
+
+    // Get the last message to use for state building
+    const lastMessage = messages[messages.length - 1];
+
+    // Build state with conversation context
+    const state = await runtime.composeState(lastMessage, {
+        conversationId: conversationId,
+        twitterUserName: runtime.getSetting("TWITTER_USERNAME")
+    });
+
     // Format conversation for per-user analysis
-    const prompt = `Analyze each user's messages in this conversation and provide a sentiment score from -1.0 (very negative) to 1.0 (very positive).
-Consider factors like: politeness, engagement, friendliness, and cooperation.
+    const analysisTemplate = ` 
+    #Recent Conversations:
+    {{recentUserConversations}}
 
-Context: ${conversation.context}
+    #Instructions:
+    Evaluate the messages the other users sent to you in this conversation. 
+    Rate each users messages sent to you as a whole using these metrics: [-5] very bad, [0] neutral, [5] very good. 
+    Evaluates these messages as the character ${runtime.character.name} with the context of the whole conversation. 
+    If you aren't sure if the message was directed to you, or you're missing context to give a good answer, give the score [0] neutral. 
 
-${Array.from(userMessages.entries()).map(([username, msgs]) =>
-    `Messages from @${username}:\n${msgs.join('\n')}`
-).join('\n\n')}
-
-Return ONLY a JSON object with usernames as keys and scores as values. Example format:
-{
-    "@user1": 0.8,
-    "@user2": -0.3
-}`;
+    Return ONLY a JSON object with usernames as keys and scores as values. Example format:
+    {
+        "@user1": 0.8,
+        "@user2": -0.3
+    }`;
+    const context = composeContext({
+        state,
+        template: analysisTemplate
+    });
 
     const analysis = await runtime.generateText({
-        prompt,
-        temperature: 0.7,
-        maxTokens: 500
+        prompt: context,
     });
 
     elizaLogger.log("User sentiment scores:", analysis);
@@ -495,13 +498,17 @@ Return ONLY a JSON object with usernames as keys and scores as values. Example f
 
         // Update user rapport based on sentiment scores
         for (const [username, score] of Object.entries(sentimentScores)) {
-            const userId = messages.find(m => m.content.username === username.replace('@', ''))?.userId;
+            const userId = messages.find(m => 
+                (m.content.username || m.userId) === username.replace('@', '')
+            )?.userId;
+            
             if (userId) {
-                await runtime.databaseAdapter.updateUserRapport({
+                await runtime.databaseAdapter.setUserRapport(
                     userId,
-                    agentId: runtime.agentId,
-                    sentimentScore: score as number
-                });
+                    runtime.agentId,
+                    score as number
+                );
+                elizaLogger.log(`Updated rapport for user ${username}:`, score);
             }
         }
     } catch (error) {

@@ -8,6 +8,7 @@ import {
     type UUID,
     Participant,
     IDatabaseAdapter,
+    Conversation,
 } from "./types.ts";
 import { CircuitBreaker } from "./database/CircuitBreaker";
 import { elizaLogger } from "./logger";
@@ -328,13 +329,6 @@ export abstract class DatabaseAdapter<DB = any> implements IDatabaseAdapter {
     abstract getParticipantsForAccount(userId: UUID): Promise<Participant[]>;
 
     /**
-     * Retrieves participants associated with a specific account.
-     * @param userId The UUID of the account.
-     * @returns A Promise that resolves to an array of Participant objects.
-     */
-    abstract getParticipantsForAccount(userId: UUID): Promise<Participant[]>;
-
-    /**
      * Retrieves participants for a specific room.
      * @param roomId The UUID of the room for which to retrieve participants.
      * @returns A Promise that resolves to an array of UUIDs representing the participants.
@@ -401,5 +395,37 @@ export abstract class DatabaseAdapter<DB = any> implements IDatabaseAdapter {
             });
             throw error;
         }
+    }
+
+    async getFormattedConversation(conversationId: UUID): Promise<string> {
+        throw new Error("Method not implemented.");
+    }
+
+    async getConversation(conversationId: UUID): Promise<Conversation | null> {
+        throw new Error("Method not implemented.");
+    }
+
+    async storeConversation(conversation: Conversation): Promise<void> {
+        throw new Error("Method not implemented.");
+    }
+
+    async updateConversation(conversation: Partial<Conversation> & { id: UUID }): Promise<void> {
+        throw new Error("Method not implemented.");
+    }
+
+    async getConversationsByStatus(status: string, limit?: number): Promise<Conversation[]> {
+        throw new Error("Method not implemented.");
+    }
+
+    async getConversationMessages(conversationId: UUID): Promise<Memory[]> {
+        throw new Error("Method not implemented.");
+    }
+
+    async setUserRapport(userId: UUID, agentId: UUID, score: number): Promise<void> {
+        throw new Error("Method not implemented.");
+    }
+
+    async getUserRapport(userId: UUID, agentId: UUID): Promise<number> {
+        throw new Error("Method not implemented.");
     }
 }
