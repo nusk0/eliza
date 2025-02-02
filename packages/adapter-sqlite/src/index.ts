@@ -19,14 +19,14 @@ import { sqliteTables } from "./sqliteTables.ts";
 
 interface Conversation {
     id: UUID;
-    rootTweetId: string;
+    rootTweetId?: string;
     messageIds: string;  // JSON string of UUIDs
     participantIds: string;  // JSON string of UUIDs
     startedAt: Date;
     lastMessageAt: Date;
     context: string;
     agentId: UUID;
-    status?: string;
+    status: 'ACTIVE' | 'CLOSED';  // Updated to match interface
 }
 
 export class SqliteDatabaseAdapter
@@ -93,18 +93,27 @@ export class SqliteDatabaseAdapter
             messageIds.map(id => this.getMemoryById(id))
         );
         
-        // Filter out any null messages and ensure proper timestamp handling
         return messages
             .filter((m): m is Memory => m !== null)
-            .map(memory => ({
-                ...memory,
-                createdAt: typeof memory.createdAt === 'string' 
-                    ? Date.parse(memory.createdAt)
-                    : typeof memory.createdAt === 'object' && memory.createdAt 
-                        ? (memory.createdAt as Date).getTime()
-                        : memory.createdAt
-            }))
-            .sort((a, b) => Number(a.createdAt) - Number(b.createdAt));
+            .map(memory => {
+                let timestamp: number;
+                
+                if (typeof memory.createdAt === 'number') {
+                    timestamp = memory.createdAt;
+                } else if (typeof memory.createdAt === 'string') {
+                    timestamp = new Date(memory.createdAt).getTime();
+                } else if (memory.createdAt && typeof memory.createdAt === 'object') {
+                    timestamp = (memory.createdAt as Date).getTime();
+                } else {
+                    timestamp = Date.now();
+                }
+
+                return {
+                    ...memory,
+                    createdAt: timestamp
+                };
+            })
+            .sort((a, b) => a.createdAt - b.createdAt);
     }
 
     async getFormattedConversation(conversationId: UUID): Promise<string> {
@@ -115,14 +124,19 @@ export class SqliteDatabaseAdapter
         
         // Format each message with timestamp
         const formattedMessages = messages.map(msg => {
-            const timestamp = new Date(msg.createdAt).toLocaleString("en-US", {
+            // Ensure we have a valid number for the timestamp
+            const timestamp = typeof msg.createdAt === 'number' 
+                ? new Date(msg.createdAt)
+                : new Date();
+
+            const formattedTime = timestamp.toLocaleString("en-US", {
                 hour: "2-digit",
                 minute: "2-digit",
                 month: "short",
                 day: "numeric"
             });
             const username = msg.content.username || msg.userId;
-            return `@${username} (${timestamp}):\n${msg.content.text}`;
+            return `@${username} (${formattedTime}):\n${msg.content.text}`;
         });
 
         return `Context: ${conversation.context}\n\n${formattedMessages.join('\n\n')}`;
@@ -834,16 +848,16 @@ export class SqliteDatabaseAdapter
     }
 
     async getConversation(conversationId: UUID): Promise<Conversation | null> {
-        console.log("getConversation")
         const sql = "SELECT * FROM conversations WHERE id = ?";
-        const conversation = this.db.prepare(sql).get(conversationId) as Conversation | undefined;
+        const conversation = this.db.prepare(sql).get(conversationId) as (Omit<Conversation, 'status'> & { status?: string }) | undefined;
         
         if (!conversation) return null;
         
         return {
             ...conversation,
             startedAt: new Date(conversation.startedAt),
-            lastMessageAt: new Date(conversation.lastMessageAt)
+            lastMessageAt: new Date(conversation.lastMessageAt),
+            status: (conversation.status || 'ACTIVE') as 'ACTIVE' | 'CLOSED'
         };
     }
 
@@ -858,14 +872,14 @@ export class SqliteDatabaseAdapter
         
         this.db.prepare(sql).run(
             conversation.id,
-            conversation.rootTweetId,
+            conversation.rootTweetId || '',  // Ensure string
             conversation.messageIds,
             conversation.participantIds,
             conversation.startedAt.getTime(),
             conversation.lastMessageAt.getTime(),
             conversation.context,
             conversation.agentId,
-            conversation.status || 'ACTIVE'
+            conversation.status || 'ACTIVE'  // Ensure status is set
         );
     }
 
@@ -914,14 +928,22 @@ export class SqliteDatabaseAdapter
         this.db.prepare(sql).run(...values);
     }
 
-    async getConversationsByStatus(status: string): Promise<Conversation[]> {
-        const sql = "SELECT * FROM conversations WHERE status = ?";
-        const conversations = this.db.prepare(sql).all(status) as Conversation[];
+    async getConversationsByStatus(status: 'ACTIVE' | 'CLOSED', limit?: number): Promise<Conversation[]> {
+        let sql = "SELECT * FROM conversations WHERE status = ?";
+        const params: any[] = [status];
+        
+        if (typeof limit === 'number') {
+            sql += " LIMIT ?";
+            params.push(limit);
+        }
+        
+        const conversations = this.db.prepare(sql).all(...params) as (Omit<Conversation, 'status'> & { status?: string })[];
         
         return conversations.map(conversation => ({
             ...conversation,
             startedAt: new Date(conversation.startedAt),
-            lastMessageAt: new Date(conversation.lastMessageAt)
+            lastMessageAt: new Date(conversation.lastMessageAt),
+            status: (conversation.status || 'ACTIVE') as 'ACTIVE' | 'CLOSED'
         }));
     }
 }

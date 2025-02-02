@@ -329,7 +329,6 @@ export interface State {
 
     /** Recent conversations specific to the current user */
     recentUserConversations?: string;
-
     /** Additional dynamic properties */
     [key: string]: unknown;
 }
@@ -946,21 +945,13 @@ export interface IDatabaseAdapter {
     }): Promise<Relationship | null>;
 
     getRelationships(params: { userId: UUID }): Promise<Relationship[]>;
-
     getFormattedConversation(conversationId: UUID): Promise<string>;
-
     getConversation(conversationId: UUID): Promise<Conversation | null>;
-
     storeConversation(conversation: Conversation): Promise<void>;
-
     updateConversation(conversation: Partial<Conversation> & { id: UUID }): Promise<void>;
-
-    getConversationsByStatus(status: string, limit?: number): Promise<Conversation[]>;
-
+    getConversationsByStatus(status: 'ACTIVE' | 'CLOSED', limit?: number): Promise<Conversation[]>;
     getConversationMessages(conversationId: UUID): Promise<Memory[]>;
-
     setUserRapport(userId: UUID, agentId: UUID, score: number): Promise<void>;
-
     getUserRapport(userId: UUID, agentId: UUID): Promise<number>;
 }
 
@@ -1276,16 +1267,16 @@ export interface ISlackService extends Service {
 
 export interface Conversation {
     id: UUID;
-    messageIds: string; // JSON string array
-    participantIds: string; // JSON string array
+    rootTweetId?: string;
+    messageIds: string;
+    participantIds: string;
     startedAt: Date;
     lastMessageAt: Date;
-    closedAt?: Date;
     context: string;
-    status: 'ACTIVE' | 'CLOSED';
     agentId: UUID;
-    rootTweetId?: string;
+    status: 'ACTIVE' | 'CLOSED';
 }
+
 // Encode function
 export function encodeString(str: string): string {
     return Buffer.from(str).toString('base64');
