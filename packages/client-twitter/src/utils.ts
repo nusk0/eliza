@@ -1,5 +1,6 @@
 import { Tweet } from "agent-twitter-client";
-import { getEmbeddingZeroVector, composeContext, elizaLogger } from "@elizaos/core";
+import { getEmbeddingZeroVector, composeContext, elizaLogger,  generateText,ModelClass
+} from "@elizaos/core";
 import type { Content, Memory, UUID, IAgentRuntime } from "@elizaos/core";
 
 import { stringToUuid } from "@elizaos/core";
@@ -438,7 +439,9 @@ export async function analyzeConversation(
     conversationId: UUID,
     runtime: IAgentRuntime
 ): Promise<void> {
+    
     const conversation = await runtime.databaseAdapter.getConversation(conversationId);
+    console.log("analyze conversation", conversation)
     if (!conversation) {
         elizaLogger.error("No conversation found for analysis", conversationId);
         return;
@@ -450,25 +453,25 @@ export async function analyzeConversation(
         elizaLogger.error("No messages found in conversation for analysis", conversationId);
         return;
     }
-
-    // Get the last message to use for state building
+// Get the last message to use for state building
     const lastMessage = messages[messages.length - 1];
-
     // Build state with conversation context
     const state = await runtime.composeState(lastMessage, {
         conversationId: conversationId,
         twitterUserName: runtime.getSetting("TWITTER_USERNAME")
     });
 
+    //console.log("state:", state)
+
     // Format conversation for per-user analysis
     const analysisTemplate = ` 
-    #Recent Conversations:
+    #Conversation:
     {{recentUserConversations}}
 
     #Instructions:
     Evaluate the messages the other users sent to you in this conversation. 
     Rate each users messages sent to you as a whole using these metrics: [-5] very bad, [0] neutral, [5] very good. 
-    Evaluates these messages as the character ${runtime.character.name} with the context of the whole conversation. 
+    Evaluates these messages as the character {{agentName}} (@{{twitterUserName}}):with the context of the whole conversation. 
     If you aren't sure if the message was directed to you, or you're missing context to give a good answer, give the score [0] neutral. 
 
     Return ONLY a JSON object with usernames as keys and scores as values. Example format:
@@ -480,9 +483,12 @@ export async function analyzeConversation(
         state,
         template: analysisTemplate
     });
-
-    const analysis = await runtime.generateText({
-        prompt: context,
+    console.log("context", context)
+ 
+    const analysis = await generateText({
+        runtime,
+        context,
+        modelClass: ModelClass.LARGE,
     });
 
     elizaLogger.log("User sentiment scores:", analysis);
@@ -493,7 +499,7 @@ export async function analyzeConversation(
         // Update conversation with analysis
         await runtime.databaseAdapter.updateConversation({
             id: conversationId,
-            status: 'CLOSED'
+            //status: 'CLOSED'
         });
 
         // Update user rapport based on sentiment scores
@@ -506,7 +512,7 @@ export async function analyzeConversation(
                 await runtime.databaseAdapter.setUserRapport(
                     userId,
                     runtime.agentId,
-                    score as number
+                    score as number  // Use the sentiment score directly
                 );
                 elizaLogger.log(`Updated rapport for user ${username}:`, score);
             }
@@ -526,7 +532,7 @@ export async function isConversationDone(
 
     const timeInactive = now.getTime() - lastMessageTime.getTime();
     if (timeInactive > 45 * 60 * 1000) {
-        elizaLogger.log("Conversation inactive for 45 minutes");
+        elizaLogger.log("Conversation inactive for 45 minutes",conversationId);
        
         return true;
     }

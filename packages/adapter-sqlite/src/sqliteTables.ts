@@ -11,8 +11,16 @@ CREATE TABLE IF NOT EXISTS "accounts" (
     "username" TEXT,
     "email" TEXT NOT NULL,
     "avatarUrl" TEXT,
-    "details" TEXT DEFAULT '{}' CHECK(json_valid("details")) -- Ensuring details is a valid JSON field
+    "details" TEXT DEFAULT '{}' CHECK(json_valid("details")), -- Ensuring details is a valid JSON field
+    "userRapport" REAL NOT NULL DEFAULT 0
 );
+
+-- Add userRapport column if it doesn't exist (using correct SQLite syntax)
+SELECT CASE 
+    WHEN NOT EXISTS(SELECT 1 FROM pragma_table_info('accounts') WHERE name='userRapport') 
+    THEN 'ALTER TABLE accounts ADD COLUMN "userRapport" REAL NOT NULL DEFAULT 0;'
+END
+WHERE NOT EXISTS(SELECT 1 FROM pragma_table_info('accounts') WHERE name='userRapport');
 
 -- Table: memories
 CREATE TABLE IF NOT EXISTS "memories" (
@@ -126,14 +134,6 @@ CREATE TABLE IF NOT EXISTS "knowledge" (
     CHECK((isShared = 1 AND agentId IS NULL) OR (isShared = 0 AND agentId IS NOT NULL))
 );
 
--- Table: user_rapport
-CREATE TABLE IF NOT EXISTS user_rapport (
-    userId TEXT NOT NULL,
-    agentId TEXT NOT NULL,
-    score REAL NOT NULL DEFAULT 0,
-    PRIMARY KEY (userId, agentId)
-);
-
 -- Index: relationships_id_key
 CREATE UNIQUE INDEX IF NOT EXISTS "relationships_id_key" ON "relationships" ("id");
 
@@ -144,8 +144,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS "memories_id_key" ON "memories" ("id");
 CREATE UNIQUE INDEX IF NOT EXISTS "participants_id_key" ON "participants" ("id");
 
 -- Index: knowledge
--- Index: user_rapport_user_agent
-CREATE INDEX IF NOT EXISTS "user_rapport_user_agent" ON "user_rapport" ("userId", "agentId");
 CREATE INDEX IF NOT EXISTS "knowledge_agent_key" ON "knowledge" ("agentId");
 CREATE INDEX IF NOT EXISTS "knowledge_agent_main_key" ON "knowledge" ("agentId", "isMain");
 CREATE INDEX IF NOT EXISTS "knowledge_original_key" ON "knowledge" ("originalId");

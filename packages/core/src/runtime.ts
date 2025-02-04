@@ -1043,6 +1043,7 @@ Text: ${attachment.text}
             recentPostInteractions: formattedPostInteractions,
             // Raw memory[] array of interactions
             recentInteractionsData: recentInteractions,
+            recentUserConversations: recentUserConversations,
             // randomly pick one topic
             topic:
                 this.character.topics && this.character.topics.length > 0

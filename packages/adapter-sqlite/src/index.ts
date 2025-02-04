@@ -122,24 +122,25 @@ export class SqliteDatabaseAdapter
 
         const messages = await this.getConversationMessages(conversationId);
         
-        // Format each message with timestamp
-        const formattedMessages = messages.map(msg => {
-            // Ensure we have a valid number for the timestamp
-            const timestamp = typeof msg.createdAt === 'number' 
-                ? new Date(msg.createdAt)
-                : new Date();
+        // Format each message showing only username
+        const formattedMessages = await Promise.all(messages.map(async msg => {
+            // First try to get username from message content
+            let username = msg.content.username;
+            
+            // If no username in content, try to get it from accounts table
+            if (!username) {
+                const account = await this.getAccountById(msg.userId);
+                if (account?.username) {
+                    username = account.username;
+                }
+            }
+            console.log("username", username)
+            // Add @ prefix if we found a username
+            const displayName = username ? `@${username}` : `user_${msg.userId.substring(0, 8)}`;
+            return `${displayName}: ${msg.content.text}`;
+        }));
 
-            const formattedTime = timestamp.toLocaleString("en-US", {
-                hour: "2-digit",
-                minute: "2-digit",
-                month: "short",
-                day: "numeric"
-            });
-            const username = msg.content.username || msg.userId;
-            return `@${username} (${formattedTime}):\n${msg.content.text}`;
-        });
-
-        return `Context: ${conversation.context}\n\n${formattedMessages.join('\n\n')}`;
+        return formattedMessages.join('\n\n');
     }
 
     async setParticipantUserState(
@@ -794,20 +795,23 @@ export class SqliteDatabaseAdapter
             .all(params.userId, params.userId) as Relationship[];
     }
     async getUserRapport(userId: UUID, agentId: UUID): Promise<number> {
-        const sql = "SELECT score FROM user_rapport WHERE userId = ? AND agentId = ?";
-        const rapport = this.db.prepare(sql).get(userId, agentId) as { score: number } | undefined;
-        
-        // Return default rapport score of 0 if none exists
-        return rapport?.score ?? 0;
+        try {
+            const sql = "SELECT userRapport FROM accounts WHERE id = ?";
+            const account = this.db.prepare(sql).get(userId) as { userRapport: number } | undefined;
+            return account?.userRapport ?? 0;
+        } catch (error) {
+            console.error("Error getting user rapport:", error);
+            return 0;
+        }
     }
 
     async setUserRapport(userId: UUID, agentId: UUID, score: number): Promise<void> {
-        const sql = `
-            INSERT INTO user_rapport (userId, agentId, score) 
-            VALUES (?, ?, ?)
-            ON CONFLICT(userId, agentId) DO UPDATE SET score = ?
-        `;
-        this.db.prepare(sql).run(userId, agentId, score, score);
+        try {
+            const sql = "UPDATE accounts SET userRapport = ? WHERE id = ?";
+            this.db.prepare(sql).run(score, userId);
+        } catch (error) {
+            console.error("Error setting user rapport:", error);
+        }
     }
 
     async getCache(params: {

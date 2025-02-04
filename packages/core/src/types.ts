@@ -526,6 +526,9 @@ export interface Account {
 
     /** Optional avatar URL */
     avatarUrl?: string;
+
+    /** User rapport score based on memory */
+    userRapport?: number;
 }
 
 /**

@@ -61,6 +61,12 @@ export async function generateText({
     modelClass: string;
     stop?: string[];
 }): Promise<string> {
+    elizaLogger.debug("Entering generateText function with:", {
+        modelProvider: runtime?.modelProvider,
+        modelClass,
+        contextLength: context?.length
+    });
+
     if (!context) {
         console.error("generateText context is empty");
         return "";
@@ -535,7 +541,7 @@ export async function generateText({
             }
 
             case ModelProviderName.VENICE: {
-                elizaLogger.debug("Initializing Venice model.");
+                elizaLogger.log("Initializing Venice model.");
                 const venice = createOpenAI({
                     apiKey: apiKey,
                     baseURL: endpoint,
@@ -553,7 +559,7 @@ export async function generateText({
                 });
 
                 response = veniceResponse;
-                elizaLogger.debug("Received response from Venice model.");
+                elizaLogger.log("Received response from Venice model.", veniceResponse);
                 break;
             }
 

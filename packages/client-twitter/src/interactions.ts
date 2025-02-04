@@ -128,11 +128,13 @@ export class TwitterInteractionClient {
 
             elizaLogger.log("Checking active conversations");
             // Get all active conversations
-            const activeConversations = await this.runtime.databaseAdapter.getConversationsByStatus('ACTIVE');
+            const activeConversations = await this.runtime.databaseAdapter.getConversationsByStatus('CLOSED');
 
             for (const conversation of activeConversations) {
                 const messageIds = JSON.parse(conversation.messageIds);
-
+                console.log("messageIds", messageIds)
+                console.log ("checking if conversation is done", conversation.id)
+                console.log("if satement logic :",isConversationDone(conversation.id, this.runtime), messageIds.length)
                 if( isConversationDone(conversation.id, this.runtime)&&messageIds.length>=3){
                     await analyzeConversation(conversation.id, this.runtime);
                 }
