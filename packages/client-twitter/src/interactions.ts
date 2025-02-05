@@ -33,6 +33,9 @@ export const twitterMessageHandlerTemplate =
 {{lore}}
 {{topics}}
 
+# Relationship Context:
+{{userRapportDescription}}
+
 {{providers}}
 
 {{characterMessageExamples}}
@@ -389,6 +392,7 @@ export class TwitterInteractionClient {
             twitterUserName: this.runtime.getSetting("TWITTER_USERNAME"),
             currentPost,
             formattedConversation,
+            userRapport: await this.runtime.databaseAdapter.getUserRapport(tweet.username, this.runtime.agentId) || 0
         });
 
         // check if the tweet exists, save if it doesn't

@@ -327,6 +327,9 @@ export interface State {
     /** User rapport score based on memory */
     userRapport?: number;
 
+    /** User rapport tier based on score */
+    userRapportDescription?: string;
+
     /** Recent conversations specific to the current user */
     recentUserConversations?: string;
     /** Additional dynamic properties */
@@ -1288,4 +1291,26 @@ export function encodeString(str: string): string {
 // Decode function
 export function decodeString(encoded: string): string {
     return Buffer.from(encoded, 'base64').toString();
+}
+
+export enum RapportTier {
+    HOSTILE = "Hostile",
+    ANTAGONISTIC = "Antagonistic",
+    UNFRIENDLY = "Unfriendly",
+    NEUTRAL = "Neutral",
+    ACQUAINTANCE = "Acquaintance",
+    FRIEND = "Friend",
+    CLOSE_FRIEND = "Close Friend",
+    FAMILY = "Family"
+}
+
+export function getRapportTier(score: number): RapportTier {
+    if (score <= -300) return RapportTier.HOSTILE;
+    if (score <= -100) return RapportTier.ANTAGONISTIC;
+    if (score <= -25) return RapportTier.UNFRIENDLY;
+    if (score < 25) return RapportTier.NEUTRAL;
+    if (score < 50) return RapportTier.ACQUAINTANCE;
+    if (score < 100) return RapportTier.FRIEND;
+    if (score < 300) return RapportTier.CLOSE_FRIEND;
+    return RapportTier.FAMILY;
 }

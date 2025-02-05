@@ -44,6 +44,9 @@ import {
     type Actor,
     type Evaluator,
     type Memory,
+    getRapportTier,
+    RapportTier,
+    Content,
 } from "./types.ts";
 import { stringToUuid } from "./uuid.ts";
 
@@ -993,11 +996,23 @@ Text: ${attachment.text}
         );
 
         // Retrieve user rapport if message is from a user
-        const userRapport = message.userId !== this.agentId
-            ? (await this.databaseAdapter.getParticipantUserState(message.roomId, message.userId))
-                ? 0  // Will be retrieved from database in future implementation
-                : undefined
-            : undefined;
+        const userRapportScore = await this.databaseAdapter.getUserRapport(message.userId, this.agentId) || 0;
+        const userRapportTier = getRapportTier(userRapportScore);
+
+        const getUserRapportDescription = (score: number, tier: RapportTier): string => {
+            return `Current relationship: ${tier} (Rapport Score: ${score})\n` +
+                `Rapport Tiers:\n` +
+                `- Family (300+): Extremely close relationship\n` +
+                `- Close Friend (100-299): Strong friendship and trust\n` +
+                `- Friend (50-99): Friendly and comfortable\n` +
+                `- Acquaintance (25-49): Familiar but not close\n` +
+                `- Neutral (0-24): No significant relationship\n` +
+                `- Unfriendly (-25 to -1): Slight tension\n` +
+                `- Antagonistic (-100 to -26): Notable conflict\n` +
+                `- Hostile (-300 or less): Severe negative relationship`;
+        };
+
+        const userRapportDescription = getUserRapportDescription(userRapportScore, userRapportTier);
 
         // if bio is a string, use it. if its an array, pick one at random
         let bio = this.character.bio || "";
@@ -1100,6 +1115,7 @@ Text: ${attachment.text}
                           })()
                       )
                     : "",
+                    
 
             postDirections:
                 this.character?.style?.all?.length > 0 ||
@@ -1163,8 +1179,9 @@ Text: ${attachment.text}
                 formattedAttachments && formattedAttachments.length > 0
                     ? addHeader("# Attachments", formattedAttachments)
                     : "",
+                    userRapportDescription: userRapportDescription,
             ...additionalKeys,
-            userRapport,
+        
         } as State;
 
         const actionPromises = this.actions.map(async (action: Action) => {

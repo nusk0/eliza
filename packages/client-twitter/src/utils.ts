@@ -500,7 +500,7 @@ export async function analyzeConversation(
         // Update conversation with analysis
         await runtime.databaseAdapter.updateConversation({
             id: conversationId,
-            //status: 'CLOSED'
+            status: 'CLOSED'
         });
 
         // Update user rapport based on sentiment scores
