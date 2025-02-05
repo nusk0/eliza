@@ -484,12 +484,13 @@ export async function analyzeConversation(
         template: analysisTemplate
     });
     console.log("context", context)
- 
+
     const analysis = await generateText({
         runtime,
         context,
         modelClass: ModelClass.LARGE,
     });
+
 
     elizaLogger.log("User sentiment scores:", analysis);
 
@@ -504,18 +505,11 @@ export async function analyzeConversation(
 
         // Update user rapport based on sentiment scores
         for (const [username, score] of Object.entries(sentimentScores)) {
-            const userId = messages.find(m => 
-                (m.content.username || m.userId) === username.replace('@', '')
-            )?.userId;
-            
-            if (userId) {
-                await runtime.databaseAdapter.setUserRapport(
-                    userId,
-                    runtime.agentId,
-                    score as number  // Use the sentiment score directly
-                );
-                elizaLogger.log(`Updated rapport for user ${username}:`, score);
-            }
+            await runtime.databaseAdapter.setUserRapport(
+                username,
+                runtime.agentId,
+                score as number
+            );
         }
     } catch (error) {
         elizaLogger.error("Error parsing sentiment analysis:", error);

@@ -805,10 +805,24 @@ export class SqliteDatabaseAdapter
         }
     }
 
-    async setUserRapport(userId: UUID, agentId: UUID, score: number): Promise<void> {
+    async setUserRapport(userIdOrUsername: UUID | string, agentId: UUID, score: number): Promise<void> {
         try {
-            const sql = "UPDATE accounts SET userRapport = ? WHERE id = ?";
-            this.db.prepare(sql).run(score, userId);
+            let sql;
+            let params;
+            
+            // Check if we're dealing with a username or userId
+            if (userIdOrUsername.includes('-')) {
+                // It's a UUID
+                sql = "UPDATE accounts SET userRapport = userRapport + ? WHERE id = ?";
+                params = [score, userIdOrUsername];
+            } else {
+                // It's a username
+                sql = "UPDATE accounts SET userRapport = userRapport + ? WHERE username = ?";
+                params = [score, userIdOrUsername.replace('@', '')];
+            }
+            
+            console.log("Setting rapport for", userIdOrUsername, "score:", score);
+            this.db.prepare(sql).run(...params);
         } catch (error) {
             console.error("Error setting user rapport:", error);
         }
