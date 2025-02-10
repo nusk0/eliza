@@ -460,9 +460,9 @@ export const models: Models = {
             temperature: 0.6,
         },
         model: {
-            [ModelClass.SMALL]: settings.SMALL_VENICE_MODEL || "deepseek-r1-671b",
-            [ModelClass.MEDIUM]: settings.MEDIUM_VENICE_MODEL || "deepseek-r1-671b",
-            [ModelClass.LARGE]: settings.LARGE_VENICE_MODEL || "deepseek-r1-671b",
+            [ModelClass.SMALL]: settings.SMALL_VENICE_MODEL || "llama-3.3-70b",
+            [ModelClass.MEDIUM]: settings.MEDIUM_VENICE_MODEL || "llama-3.3-70b",
+            [ModelClass.LARGE]: settings.LARGE_VENICE_MODEL || "llama-3.1-405b",
             [ModelClass.IMAGE]: settings.IMAGE_VENICE_MODEL || "fluently-xl",
         },
     },
