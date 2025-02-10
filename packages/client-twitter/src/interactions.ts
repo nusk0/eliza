@@ -60,7 +60,6 @@ Thread of Tweets You Are Replying To:
 {{actionNames}}
 Here is the current post text again. Remember to include an action if the current post text includes a prompt that asks for one of the available actions mentioned above (does not need to be exact)
 {{currentPost}}
-Talk in the voice of {{agentName}} (@{{twitterUserName}})
 ` + messageCompletionFooter;
 
 export const twitterShouldRespondTemplate = (targetUsersStr: string) =>
