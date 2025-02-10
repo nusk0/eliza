@@ -1294,23 +1294,24 @@ export function decodeString(encoded: string): string {
 }
 
 export enum RapportTier {
-    HOSTILE = "Hostile",
-    ANTAGONISTIC = "Antagonistic",
-    UNFRIENDLY = "Unfriendly",
-    NEUTRAL = "Neutral",
-    ACQUAINTANCE = "Acquaintance",
-    FRIEND = "Friend",
-    CLOSE_FRIEND = "Close Friend",
-    FAMILY = "Family"
+    HOSTILE = "Make response hostile and manic. Mix violent threats with excited weapon talk. Show deep distrust and aggression.",
+    ANTAGONISTIC = "Make response cold and mocking. Channel resentment towards Piltover. Use taunts and barely-contained hostility.",
+    UNFRIENDLY = "Make response dismissive and unstable. Name weapons after cute things. Show clear irritation.",
+    NEUTRAL = "Make response chaotically indifferent. Mix boredom with sudden intensity.",
+    ACQUAINTANCE = "Make response cautiously playful. Show unstable interest without hostility.",
+    FRIEND = "Make response enthusiastically chaotic. Share excitement about explosions and mayhem.",
+    CLOSE_FRIEND = "Make response intensely affectionate but unstable. Reference shared chaos. Be explosively protective.",
+    FAMILY = "Make response emotional and protective. Mix Silco-like devotion with fierce instability."
 }
 
+// Helper function to get tier from score
 export function getRapportTier(score: number): RapportTier {
-    if (score <= -300) return RapportTier.HOSTILE;
-    if (score <= -100) return RapportTier.ANTAGONISTIC;
-    if (score <= -25) return RapportTier.UNFRIENDLY;
-    if (score < 25) return RapportTier.NEUTRAL;
-    if (score < 50) return RapportTier.ACQUAINTANCE;
-    if (score < 100) return RapportTier.FRIEND;
-    if (score < 300) return RapportTier.CLOSE_FRIEND;
-    return RapportTier.FAMILY;
+    if (score >= 300) return RapportTier.FAMILY;
+    if (score >= 100) return RapportTier.CLOSE_FRIEND;
+    if (score >= 50) return RapportTier.FRIEND;
+    if (score >= 25) return RapportTier.ACQUAINTANCE;
+    if (score >= 0) return RapportTier.NEUTRAL;
+    if (score >= -25) return RapportTier.UNFRIENDLY;
+    if (score >= -100) return RapportTier.ANTAGONISTIC;
+    return RapportTier.HOSTILE;
 }

@@ -728,7 +728,7 @@ export class TwitterPostClient {
                                             ?.twitterMessageHandlerTemplate ||
                                         twitterMessageHandlerTemplate,
                                 });
-
+console.log("generatetweetcontent quote", quoteContent)
                             if (!quoteContent) {
                                 elizaLogger.error(
                                     "Failed to generate valid quote tweet content"
@@ -876,7 +876,6 @@ export class TwitterPostClient {
             // Build conversation thread for context
             elizaLogger.log("Starting to build conversation thread inside reply")
             const thread = await buildConversationThread(tweet, this.client);
-            elizaLogger.log("1")
             const formattedConversation = thread
                 .map(
                     (t) =>
@@ -885,7 +884,6 @@ export class TwitterPostClient {
                 .join("\n\n");
 
             // Generate image descriptions if present
-            elizaLogger.log("2")
             const imageDescriptions = [];
             if (tweet.photos?.length > 0) {
                 elizaLogger.log("Processing images in tweet for context");
@@ -914,7 +912,6 @@ export class TwitterPostClient {
                     elizaLogger.error("Error fetching quoted tweet:", error);
                 }
             }
-            elizaLogger.log("3")
             // Compose rich state with all context
                 const enrichedState = await this.runtime.composeState(
                     {
@@ -945,16 +942,15 @@ export class TwitterPostClient {
                             ?.twitterMessageHandlerTemplate ||
                         twitterMessageHandlerTemplate,
                 });
-            elizaLogger.log("4")
-            //console.log("", replyText)
+console.log("generatetweetcontent reply", replyText)
+                //console.log("", replyText)
                 if (!replyText) {
                     elizaLogger.error("Failed to generate valid reply content");
                     return null;
                 }
-            elizaLogger.log("5")
 
                 // When ready to send the reply
-                if (isTestMode) {
+                if(isTestMode) {
                     elizaLogger.log("Test mode: Generated reply content:", {
                         replyText,
                         inReplyTo: tweet.id,

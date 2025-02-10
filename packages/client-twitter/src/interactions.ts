@@ -33,8 +33,7 @@ export const twitterMessageHandlerTemplate =
 {{lore}}
 {{topics}}
 
-# Relationship Context:
-{{userRapportDescription}}
+
 
 {{providers}}
 
@@ -57,10 +56,11 @@ Thread of Tweets You Are Replying To:
 {{formattedConversation}}
 
 {{actions}}
-# Task: Generate a post in the voice, style and perspective of {{agentName}} (@{{twitterUserName}}), check'Thread of Tweets You Are Replying To' to avoid repeating yourself. You MUST include an action if the current post text includes a prompt that is similar to one of the available actions mentioned here:
+# Task: Generate a post in the voice, style and perspective of {{agentName}} (@{{twitterUserName}}). {{userRapportDescription}} check 'Thread of Tweets You Are Replying To' to avoid repeating yourself. You MUST include an action if the current post text includes a prompt that is similar to one of the available actions mentioned here:
 {{actionNames}}
 Here is the current post text again. Remember to include an action if the current post text includes a prompt that asks for one of the available actions mentioned above (does not need to be exact)
 {{currentPost}}
+Talk in the voice of {{agentName}} (@{{twitterUserName}})
 ` + messageCompletionFooter;
 
 export const twitterShouldRespondTemplate = (targetUsersStr: string) =>
@@ -135,14 +135,12 @@ export class TwitterInteractionClient {
 
             for (const conversation of activeConversations) {
                 const messageIds = JSON.parse(conversation.messageIds);
-                console.log("messageIds", messageIds)
-                console.log ("checking if conversation is done", conversation.id)
-                console.log("if satement logic :",isConversationDone(conversation.id, this.runtime), messageIds.length)
+          
                 if( isConversationDone(conversation.id, this.runtime)&&messageIds.length>=3){
                     await analyzeConversation(conversation.id, this.runtime);
                 }
                 else{
-                    elizaLogger.log("Conversation not done yet, skipping");
+                    elizaLogger.debug("Conversation not done yet, skipping");
                 }
             }
         } catch (error) {

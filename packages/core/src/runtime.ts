@@ -776,7 +776,8 @@ export class AgentRuntime implements IAgentRuntime {
         additionalKeys: { [key: string]: unknown } = {}
     ) {
         const { userId, roomId } = message;
-
+        console.log("composing state, the user id is : ", userId)
+        console.log("composing state, the room id is : ", roomId)
         const conversationLength = this.getConversationLength();
 
         const [actorsData, recentMessagesData, goalsData]: [
@@ -996,23 +997,26 @@ Text: ${attachment.text}
         );
 
         // Retrieve user rapport if message is from a user
-        const userRapportScore = await this.databaseAdapter.getUserRapport(message.userId, this.agentId) || 0;
+        const userRapportScore = await this.databaseAdapter.getUserRapport(actorsData[0].id, this.agentId) || 0;
         const userRapportTier = getRapportTier(userRapportScore);
 
-        const getUserRapportDescription = (score: number, tier: RapportTier): string => {
-            return `Current relationship: ${tier} (Rapport Score: ${score})\n` +
-                `Rapport Tiers:\n` +
-                `- Family (300+): Extremely close relationship\n` +
-                `- Close Friend (100-299): Strong friendship and trust\n` +
-                `- Friend (50-99): Friendly and comfortable\n` +
-                `- Acquaintance (25-49): Familiar but not close\n` +
-                `- Neutral (0-24): No significant relationship\n` +
-                `- Unfriendly (-25 to -1): Slight tension\n` +
-                `- Antagonistic (-100 to -26): Notable conflict\n` +
-                `- Hostile (-300 or less): Severe negative relationship`;
+        const getUserRapportDescription = (tier: RapportTier): string => {
+            if(tier==RapportTier.NEUTRAL){
+                return '';
+            }
+            else{
+                return tier;
+            }
         };
 
-        const userRapportDescription = getUserRapportDescription(userRapportScore, userRapportTier);
+        
+        const userRapportDescription = getUserRapportDescription( userRapportTier);
+        console.log("Building rapport context for user:", {
+            userId: message.userId,
+            score: userRapportScore,
+            tier: userRapportTier,
+            description: userRapportDescription,
+        });
 
         // if bio is a string, use it. if its an array, pick one at random
         let bio = this.character.bio || "";
