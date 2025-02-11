@@ -87,17 +87,17 @@ export class SqliteDatabaseAdapter
     async getConversationMessages(conversationId: UUID): Promise<Memory[]> {
         const conversation = await this.getConversation(conversationId);
         if (!conversation) return [];
-  
+
         const messageIds = JSON.parse(conversation.messageIds);
         const messages = await Promise.all(
             messageIds.map(id => this.getMemoryById(id))
         );
-        
+
         return messages
             .filter((m): m is Memory => m !== null)
             .map(memory => {
                 let timestamp: number;
-                
+
                 if (typeof memory.createdAt === 'number') {
                     timestamp = memory.createdAt;
                 } else if (typeof memory.createdAt === 'string') {
@@ -121,12 +121,12 @@ export class SqliteDatabaseAdapter
         if (!conversation) return "";
 
         const messages = await this.getConversationMessages(conversationId);
-        
+
         // Format each message showing only username
         const formattedMessages = await Promise.all(messages.map(async msg => {
             // First try to get username from message content
             let username = msg.content.username;
-            
+
             // If no username in content, try to get it from accounts table
             if (!username) {
                 const account = await this.getAccountById(msg.userId);
@@ -809,7 +809,7 @@ export class SqliteDatabaseAdapter
         try {
             let sql;
             let params;
-            
+
             // Check if we're dealing with a username or userId
             if (userIdOrUsername.includes('-')) {
                 // It's a UUID
@@ -820,7 +820,7 @@ export class SqliteDatabaseAdapter
                 sql = "UPDATE accounts SET userRapport = userRapport + ? WHERE username = ?";
                 params = [score, userIdOrUsername.replace('@', '')];
             }
-            
+
             console.log("Setting rapport for", userIdOrUsername, "score:", score);
             this.db.prepare(sql).run(...params);
         } catch (error) {
@@ -868,9 +868,9 @@ export class SqliteDatabaseAdapter
     async getConversation(conversationId: UUID): Promise<Conversation | null> {
         const sql = "SELECT * FROM conversations WHERE id = ?";
         const conversation = this.db.prepare(sql).get(conversationId) as (Omit<Conversation, 'status'> & { status?: string }) | undefined;
-        
+
         if (!conversation) return null;
-        
+
         return {
             ...conversation,
             startedAt: new Date(conversation.startedAt),
@@ -882,12 +882,12 @@ export class SqliteDatabaseAdapter
     async storeConversation(conversation: Conversation): Promise<void> {
         const sql = `
             INSERT INTO conversations (
-                id, rootTweetId, messageIds, participantIds, 
+                id, rootTweetId, messageIds, participantIds,
                 startedAt, lastMessageAt, context, agentId, status
-            ) 
+            )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
-        
+
         this.db.prepare(sql).run(
             conversation.id,
             conversation.rootTweetId || '',  // Ensure string
@@ -912,7 +912,7 @@ export class SqliteDatabaseAdapter
                 const allNewIds = JSON.parse(conversation.messageIds);
                 const lastNewId = allNewIds[allNewIds.length - 1]; // Get the last message ID
                 console.log("added new message ", lastNewId);
-                
+
                 if (existingIds.includes(lastNewId)) {
                     console.log("message already exists");
                     return; // Exit early if message already exists
@@ -949,14 +949,14 @@ export class SqliteDatabaseAdapter
     async getConversationsByStatus(status: 'ACTIVE' | 'CLOSED', limit?: number): Promise<Conversation[]> {
         let sql = "SELECT * FROM conversations WHERE status = ?";
         const params: any[] = [status];
-        
+
         if (typeof limit === 'number') {
             sql += " LIMIT ?";
             params.push(limit);
         }
-        
+
         const conversations = this.db.prepare(sql).all(...params) as (Omit<Conversation, 'status'> & { status?: string })[];
-        
+
         return conversations.map(conversation => ({
             ...conversation,
             startedAt: new Date(conversation.startedAt),

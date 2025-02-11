@@ -486,12 +486,12 @@ export const models: Models = {
                 "Meta-Llama-3-1-405B-Instruct-FP8",
         },
     },
-   
+
 };
 
 export function getModel(provider: ModelProviderName, type: ModelClass) {
     return models[provider].model[type];
-} 
+}
 
 export function getEndpoint(provider: ModelProviderName) {
     return models[provider].endpoint;
