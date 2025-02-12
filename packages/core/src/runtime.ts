@@ -779,13 +779,37 @@ export class AgentRuntime implements IAgentRuntime {
         console.log("composing state, the user id is : ", userId)
         console.log("composing state, the room id is : ", roomId)
         const conversationLength = this.getConversationLength();
-
+        console.log("1")
         const [actorsData, recentMessagesData, goalsData]: [
             Actor[],
             Memory[],
             Goal[],
         ] = await Promise.all([
-            getActorDetails({ runtime: this, roomId }),
+            getActorDetails({ runtime: this, roomId }).then(actors => {
+                console.log("Actor details retrieved:", {
+                    roomId,
+                    actorCount: actors.length,
+                    actors: actors.map(a => ({id: a.id, username: a.username}))
+                });
+                if (!actors || actors.length === 0) {
+                    // This should never happen as we should at least have the message author
+                    console.error("No actors found for room:", roomId);
+                    console.error("Message details:", {
+                        messageId: message.id,
+                        userId: message.userId,
+                        roomId: message.roomId
+                    });
+                    
+                    // Emergency fallback: Create an actor from the message
+                    return [{
+                        id: message.userId,
+                        name: "Unknown User",
+                        username: "unknown",
+                        details: { tagline: "", summary: "", quote: "" }
+                    }];
+                }
+                return actors;
+            }),
             this.messageManager.getMemories({
                 roomId,
                 count: conversationLength,
@@ -798,9 +822,9 @@ export class AgentRuntime implements IAgentRuntime {
                 roomId,
             }),
         ]);
-
+        console.log("2")
         const goals = formatGoalsAsString({ goals: goalsData });
-
+        console.log("3")
         const actors = formatActors({ actors: actorsData ?? [] });
 
         const recentMessages = formatMessages({
@@ -945,12 +969,13 @@ Text: ${attachment.text}
                 : [];
 
         // Get formatted conversation if conversationId is provided
+        console.log("4")
         let recentUserConversations = "";
         if (additionalKeys.conversationId) {
             const currentConversationId = additionalKeys.conversationId as UUID;
             recentUserConversations = await this.databaseAdapter.getFormattedConversation(currentConversationId);
         }
-
+        console.log("5")
         const getRecentMessageInteractions = async (
             recentInteractionsData: Memory[]
         ): Promise<string> => {
@@ -971,13 +996,13 @@ Text: ${attachment.text}
                     return `${sender}: ${message.content.text}`;
                 })
             );
-
+            console.log("6")
             return formattedInteractions.join("\n");
         };
 
         const formattedMessageInteractions =
             await getRecentMessageInteractions(recentInteractions);
-
+        console.log("7")
         const getRecentPostInteractions = async (
             recentInteractionsData: Memory[],
             actors: Actor[]
@@ -995,13 +1020,25 @@ Text: ${attachment.text}
             recentInteractions,
             actorsData
         );
-
+        console.log("8")
         // Retrieve user rapport if message is from a user
-        const userRapportScore = await this.databaseAdapter.getUserRapport(actorsData[0].id, this.agentId) || 0;
-        const userRapportTier = getRapportTier(userRapportScore);
+        console.log("actorsData:", actorsData);
+        let userRapportScore = 0;
+        let userRapportTier = getRapportTier(0);  // Default to neutral
+
+        if (actorsData && actorsData.length > 0 && actorsData[0]?.id) {
+            userRapportScore = await this.databaseAdapter.getUserRapport(actorsData[0].id, this.agentId) || 0;
+            userRapportTier = getRapportTier(userRapportScore);
+            console.log("Found user rapport for:", actorsData[0].id, "Score:", userRapportScore);
+        } else {
+            console.log("No valid actor data found for rapport calculation");
+        }
+
+        console.log("userRapportScore:", userRapportScore);
+        console.log("UserRapportTier:", userRapportTier);
 
         const getUserRapportDescription = (tier: RapportTier): string => {
-            if(tier==RapportTier.NEUTRAL){
+            if(tier === RapportTier.NEUTRAL){
                 return '';
             }
             else{
@@ -1009,15 +1046,14 @@ Text: ${attachment.text}
             }
         };
 
-        
-        const userRapportDescription = getUserRapportDescription( userRapportTier);
+        const userRapportDescription = getUserRapportDescription(userRapportTier);
         console.log("Building rapport context for user:", {
             userId: message.userId,
             score: userRapportScore,
             tier: userRapportTier,
             description: userRapportDescription,
         });
-
+        console.log("11")
         // if bio is a string, use it. if its an array, pick one at random
         let bio = this.character.bio || "";
         if (Array.isArray(bio)) {
@@ -1036,9 +1072,9 @@ Text: ${attachment.text}
                 .join(" ");
         }
         const knowledegeData = await knowledge.get(this, message);
-
+        console.log("12")
         const formattedKnowledge = formatKnowledge(knowledegeData);
-
+        console.log("13")   
         const initialState = {
             agentId: this.agentId,
             agentName,
@@ -1187,7 +1223,7 @@ Text: ${attachment.text}
             ...additionalKeys,
         
         } as State;
-
+        console.log("14")
         const actionPromises = this.actions.map(async (action: Action) => {
             const result = await action.validate(this, message, initialState);
             if (result) {
@@ -1195,7 +1231,7 @@ Text: ${attachment.text}
             }
             return null;
         });
-
+        console.log("15")
         const evaluatorPromises = this.evaluators.map(async (evaluator) => {
             const result = await evaluator.validate(
                 this,
@@ -1207,7 +1243,7 @@ Text: ${attachment.text}
             }
             return null;
         });
-
+        console.log("16")
         const [resolvedEvaluators, resolvedActions, providers] =
             await Promise.all([
                 Promise.all(evaluatorPromises),
@@ -1255,7 +1291,7 @@ Text: ${attachment.text}
                 providers
             ),
         };
-
+        console.log("17")
         return { ...initialState, ...actionState } as State;
     }
 
