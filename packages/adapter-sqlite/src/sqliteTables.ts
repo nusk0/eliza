@@ -2,8 +2,6 @@ export const sqliteTables = `
 PRAGMA foreign_keys=OFF;
 BEGIN TRANSACTION;
 
--- Uncomment the following line to reset all user rapport values to 0
- --UPDATE accounts SET userRapport = 0;
 
 -- Table: accounts
 CREATE TABLE IF NOT EXISTS "accounts" (
@@ -13,8 +11,16 @@ CREATE TABLE IF NOT EXISTS "accounts" (
     "username" TEXT,
     "email" TEXT NOT NULL,
     "avatarUrl" TEXT,
-    "details" TEXT DEFAULT '{}' CHECK(json_valid("details")) -- Ensuring details is a valid JSON field
+    "details" TEXT DEFAULT '{}' CHECK(json_valid("details")), -- Ensuring details is a valid JSON field
+    "userRapport" REAL NOT NULL DEFAULT 0
 );
+
+-- Add userRapport column if it doesn't exist (using correct SQLite syntax)
+SELECT CASE 
+    WHEN NOT EXISTS(SELECT 1 FROM pragma_table_info('accounts') WHERE name='userRapport') 
+    THEN 'ALTER TABLE accounts ADD COLUMN "userRapport" REAL NOT NULL DEFAULT 0;'
+END
+WHERE NOT EXISTS(SELECT 1 FROM pragma_table_info('accounts') WHERE name='userRapport');
 
 -- Table: memories
 CREATE TABLE IF NOT EXISTS "memories" (
