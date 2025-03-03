@@ -9,6 +9,7 @@ import type {
     RAGKnowledgeItem,
     Participant,
     IDatabaseAdapter,
+    Conversation,
 } from "./types.ts";
 import { CircuitBreaker } from "./database/CircuitBreaker";
 import { elizaLogger } from "./logger";
@@ -456,5 +457,29 @@ export abstract class DatabaseAdapter<DB = any> implements IDatabaseAdapter {
             });
             throw error;
         }
+    }
+    async getFormattedConversation(conversationId: UUID): Promise<string> {
+        throw new Error("Method not implemented.");
+    }
+    async getConversation(conversationId: UUID): Promise<Conversation | null> {
+        throw new Error("Method not implemented.");
+    }
+    async storeConversation(conversation: Conversation): Promise<void> {
+        throw new Error("Method not implemented.");
+    }
+    async updateConversation(conversation: Partial<Conversation> & { id: UUID }): Promise<void> {
+        throw new Error("Method not implemented.");
+    }
+    async getConversationsByStatus(status: string, limit?: number): Promise<Conversation[]> {
+        throw new Error("Method not implemented.");
+    }
+    async getConversationMessages(conversationId: UUID): Promise<Memory[]> {
+        throw new Error("Method not implemented.");
+    }
+    async setUserRapport(userId: UUID, agentId: UUID, score: number): Promise<void> {
+        throw new Error("Method not implemented.");
+    }
+    async getUserRapport(userId: UUID, agentId: UUID): Promise<number> {
+        throw new Error("Method not implemented.");
     }
 }

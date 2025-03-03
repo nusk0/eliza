@@ -29,6 +29,7 @@ import { v4 } from "uuid";
 import { load } from "./sqlite_vec.ts";
 import { sqliteTables } from "./sqliteTables.ts";
 
+
 import Database from "better-sqlite3";
 
 export class SqliteDatabaseAdapter
@@ -52,7 +53,64 @@ export class SqliteDatabaseAdapter
         const rows = this.db.prepare(sql).all(userId) as Participant[];
         return rows;
     }
+async getConversationMessages(conversationId: UUID): Promise<Memory[]> {
+        const conversation = await this.getConversation(conversationId);
+        if (!conversation) return [];
 
+        const messageIds = JSON.parse(conversation.messageIds);
+        const messages = await Promise.all(
+            messageIds.map(id => this.getMemoryById(id))
+        );
+
+        return messages
+            .filter((m): m is Memory => m !== null)
+            .map(memory => {
+                let timestamp: number;
+
+                if (typeof memory.createdAt === 'number') {
+                    timestamp = memory.createdAt;
+                } else if (typeof memory.createdAt === 'string') {
+                    timestamp = new Date(memory.createdAt).getTime();
+                } else if (memory.createdAt && typeof memory.createdAt === 'object') {
+                    timestamp = (memory.createdAt as Date).getTime();
+                } else {
+                    timestamp = Date.now();
+                }
+
+                return {
+                    ...memory,
+                    createdAt: timestamp
+                };
+            })
+            .sort((a, b) => a.createdAt - b.createdAt);
+    }
+
+    async getFormattedConversation(conversationId: UUID): Promise<string> {
+        const conversation = await this.getConversation(conversationId);
+        if (!conversation) return "";
+
+        const messages = await this.getConversationMessages(conversationId);
+
+        // Format each message showing only username
+        const formattedMessages = await Promise.all(messages.map(async msg => {
+            // First try to get username from message content
+            let username = msg.content.username;
+
+            // If no username in content, try to get it from accounts table
+            if (!username) {
+                const account = await this.getAccountById(msg.userId);
+                if (account?.username) {
+                    username = account.username;
+                }
+            }
+            console.log("username", username)
+            // Add @ prefix if we found a username
+            const displayName = username ? `@${username}` : `user_${msg.userId.substring(0, 8)}`;
+            return `${displayName}: ${msg.content.text}`;
+        }));
+
+        return formattedMessages.join('\n\n');
+    }
     async getParticipantsForRoom(roomId: UUID): Promise<UUID[]> {
         const sql = "SELECT userId FROM participants WHERE roomId = ?";
         const rows = this.db.prepare(sql).all(roomId) as { userId: string }[];
@@ -729,7 +787,39 @@ export class SqliteDatabaseAdapter
             .prepare(sql)
             .all(params.userId, params.userId) as Relationship[];
     }
+    async getUserRapport(userId: UUID, agentId: UUID): Promise<number> {
+        try {
+            const sql = "SELECT userRapport FROM accounts WHERE id = ?";
+            const account = this.db.prepare(sql).get(userId) as { userRapport: number } | undefined;
+            return account?.userRapport ?? 0;
+        } catch (error) {
+            console.error("Error getting user rapport:", error);
+            return 0;
+        }
+    }
 
+    async setUserRapport(userIdOrUsername: UUID | string, agentId: UUID, score: number): Promise<void> {
+        try {
+            let sql;
+            let params;
+
+            // Check if we're dealing with a username or userId
+            if (userIdOrUsername.includes('-')) {
+                // It's a UUID
+                sql = "UPDATE accounts SET userRapport = userRapport + ? WHERE id = ?";
+                params = [score, userIdOrUsername];
+            } else {
+                // It's a username
+                sql = "UPDATE accounts SET userRapport = userRapport + ? WHERE username = ?";
+                params = [score, userIdOrUsername.replace('@', '')];
+            }
+
+            elizaLogger.debug("Setting rapport for", userIdOrUsername, "score:", score);
+            this.db.prepare(sql).run(...params);
+        } catch (error) {
+            elizaLogger.error("Error setting user rapport:", error);
+        }
+    }
     async getCache(params: {
         key: string;
         agentId: UUID;
@@ -1076,7 +1166,103 @@ export class SqliteDatabaseAdapter
             throw error;
         }
     }
+ async getConversation(conversationId: UUID): Promise<Conversation | null> {
+        const sql = "SELECT * FROM conversations WHERE id = ?";
+        const conversation = this.db.prepare(sql).get(conversationId) as (Omit<Conversation, 'status'> & { status?: string }) | undefined;
 
+        if (!conversation) return null;
+
+        return {
+            ...conversation,
+            startedAt: new Date(conversation.startedAt),
+            lastMessageAt: new Date(conversation.lastMessageAt),
+            status: (conversation.status || 'ACTIVE') as 'ACTIVE' | 'CLOSED'
+        };
+    }
+
+    async storeConversation(conversation: Conversation): Promise<void> {
+        const sql = `
+            INSERT INTO conversations (
+                id, rootTweetId, messageIds, participantIds,
+                startedAt, lastMessageAt, context, agentId, status
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        this.db.prepare(sql).run(
+            conversation.id,
+            conversation.rootTweetId || '',  // Ensure string
+            conversation.messageIds,
+            conversation.participantIds,
+            conversation.startedAt.getTime(),
+            conversation.lastMessageAt.getTime(),
+            conversation.context,
+            conversation.agentId,
+            conversation.status || 'ACTIVE'  // Ensure status is set
+        );
+    }
+
+    async updateConversation(conversation: Partial<Conversation> & { id: UUID }): Promise<void> {
+        const updates: string[] = [];
+        const values: any[] = [];
+        if (conversation.messageIds !== undefined) {
+            const existingConversation = await this.getConversation(conversation.id);
+            if (existingConversation) {
+                const existingIds = JSON.parse(existingConversation.messageIds);
+                const allNewIds = JSON.parse(conversation.messageIds);
+                const lastNewId = allNewIds[allNewIds.length - 1]; // Get the last message ID
+                elizaLogger.debug("added new message ", lastNewId);
+
+                if (existingIds.includes(lastNewId)) {
+                    elizaLogger.debug("message already exists");
+                    return; // Exit early if message already exists
+                }
+            }
+            updates.push('messageIds = ?');
+            values.push(conversation.messageIds);
+        }
+        if (conversation.participantIds !== undefined) {
+            updates.push('participantIds = ?');
+            values.push(conversation.participantIds);
+        }
+        if (conversation.lastMessageAt !== undefined) {
+            updates.push('lastMessageAt = ?');
+            values.push(conversation.lastMessageAt.getTime());
+        }
+        if (conversation.context !== undefined) {
+            updates.push('context = ?');
+            values.push(conversation.context);
+        }
+        if (conversation.status !== undefined) {
+            updates.push('status = ?');
+            values.push(conversation.status);
+        }
+
+        if (updates.length === 0) return;
+
+        const sql = `UPDATE conversations SET ${updates.join(', ')} WHERE id = ?`;
+        values.push(conversation.id);
+
+        this.db.prepare(sql).run(...values);
+    }
+
+    async getConversationsByStatus(status: 'ACTIVE' | 'CLOSED', limit?: number): Promise<Conversation[]> {
+        let sql = "SELECT * FROM conversations WHERE status = ?";
+        const params: any[] = [status];
+        if (typeof limit === 'number') {
+            sql += " LIMIT ?";
+            params.push(limit);
+        }
+
+        const conversations = this.db.prepare(sql).all(...params) as (Omit<Conversation, 'status'> & { status?: string })[];
+
+        return conversations.map(conversation => ({
+            ...conversation,
+            startedAt: new Date(conversation.startedAt),
+            lastMessageAt: new Date(conversation.lastMessageAt),
+            status: (conversation.status || 'ACTIVE') as 'ACTIVE' | 'CLOSED'
+        }));
+    }
     async clearKnowledge(agentId: UUID, shared?: boolean): Promise<void> {
         const sql = shared
             ? `DELETE FROM knowledge WHERE (agentId = ? OR isShared = 1)`
@@ -1126,3 +1312,14 @@ const sqlitePlugin: Plugin = {
     adapters: [sqliteDatabaseAdapter],
 };
 export default sqlitePlugin;
+interface Conversation {
+    id: UUID;
+    rootTweetId?: string;
+    messageIds: string;  // JSON string of UUIDs
+    participantIds: string;  // JSON string of UUIDs
+    startedAt: Date;
+    lastMessageAt: Date;
+    context: string;
+    agentId: UUID;
+    status: 'ACTIVE' | 'CLOSED';  // Updated to match interface
+}

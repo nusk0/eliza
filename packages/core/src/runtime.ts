@@ -50,6 +50,9 @@ import {
     type Action,
     type Actor,
     type Evaluator,
+    getRapportTier,
+    RapportTier,
+    Content,
     type Memory,
     type DirectoryItem,
     type ClientInstance,
@@ -1429,7 +1432,12 @@ Text: ${attachment.text}
             userId !== this.agentId
                 ? await getRecentInteractions(userId, this.agentId)
                 : [];
-
+  // Get formatted conversation if conversationId is provided
+        let recentUserConversations = "";
+        if (additionalKeys.conversationId) {
+            const currentConversationId = additionalKeys.conversationId as UUID;
+            recentUserConversations = await this.databaseAdapter.getFormattedConversation(currentConversationId);
+        }
         const getRecentMessageInteractions = async (
             recentInteractionsData: Memory[],
         ): Promise<string> => {

@@ -338,7 +338,14 @@ export interface State {
 
     /** Optional action examples */
     actionExamples?: string;
+  /** User rapport score based on memory */
+    userRapport?: number;
 
+    /** User rapport tier based on score */
+    userRapportDescription?: string;
+
+    /** Recent conversations specific to the current user */
+    recentUserConversations?: string;
     /** Optional provider descriptions */
     providers?: string;
 
@@ -561,6 +568,8 @@ export interface Account {
 
     /** Optional avatar URL */
     avatarUrl?: string;
+    /** User rapport score based on memory */
+    userRapport?: number;
 }
 
 /**
@@ -1134,9 +1143,16 @@ export interface IDatabaseAdapter {
         userB: UUID;
     }): Promise<Relationship | null>;
 
-    getRelationships(params: { userId: UUID }): Promise<Relationship[]>;
-
-    getKnowledge(params: {
+        getRelationships(params: { userId: UUID }): Promise<Relationship[]>;
+        getFormattedConversation(conversationId: UUID): Promise<string>;
+        getConversation(conversationId: UUID): Promise<Conversation | null>;
+        storeConversation(conversation: Conversation): Promise<void>;
+        updateConversation(conversation: Partial<Conversation> & { id: UUID }): Promise<void>;
+        getConversationsByStatus(status: 'ACTIVE' | 'CLOSED', limit?: number): Promise<Conversation[]>;
+        getConversationMessages(conversationId: UUID): Promise<Memory[]>;
+        setUserRapport(userId: UUID, agentId: UUID, score: number): Promise<void>;
+        getUserRapport(userId: UUID, agentId: UUID): Promise<number>;
+        getKnowledge(params: {
         id?: UUID;
         agentId: UUID;
         limit?: number;
@@ -1618,4 +1634,40 @@ export interface DirectoryItem {
 export interface ChunkRow {
     id: string;
     // Add other properties if needed
+}
+export interface Conversation {
+    id: UUID;
+    rootTweetId?: string;
+    messageIds: string;
+    participantIds: string;
+    startedAt: Date;
+    lastMessageAt: Date;
+    context: string;
+    agentId: UUID;
+    status: 'ACTIVE' | 'CLOSED';
+}
+
+
+
+export enum RapportTier {
+    HOSTILE = "Make response very cold and hostile. Show strong distrust and negativity.",
+    ANTAGONISTIC = "Make response dismissive and unfriendly. Use stern and disapproving tone.",
+    UNFRIENDLY = "Make response slightly cold and distant. Show mild irritation and reluctance.",
+    NEUTRAL = "",
+    ACQUAINTANCE = "Make response casually friendly. Show polite interest and openness.",
+    FRIEND = "Make response warm and engaging. Share enthusiasm and positive energy.",
+    CLOSE_FRIEND = "Make response very warm and supportive. Show genuine care and trust.",
+    FAMILY = "Make response deeply caring and protective. Express unconditional support and affection."
+}
+
+// Helper function to get tier from score
+export function getRapportTier(score: number): RapportTier {
+    if (score >= 300) return RapportTier.FAMILY;
+    if (score >= 100) return RapportTier.CLOSE_FRIEND;
+    if (score >= 50) return RapportTier.FRIEND;
+    if (score >= 25) return RapportTier.ACQUAINTANCE;
+    if (score >= 0) return RapportTier.NEUTRAL;
+    if (score >= -25) return RapportTier.UNFRIENDLY;
+    if (score >= -100) return RapportTier.ANTAGONISTIC;
+    return RapportTier.HOSTILE;
 }
