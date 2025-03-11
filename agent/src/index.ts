@@ -19,6 +19,7 @@ import {
     stringToUuid,
     validateCharacterConfig,
 } from "@elizaos/core";
+import { TwitterClientInterface } from "@elizaos/client-twitter";
 import { defaultCharacter } from "./defaultCharacter.ts";
 
 import { bootstrapPlugin } from "@elizaos/plugin-bootstrap";
@@ -610,6 +611,12 @@ export async function initializeClients(
             }
         }
     }
+    const twitterPlugin = {
+        name: "twitter",
+        description: "Twitter client",
+        clients: [TwitterClientInterface],
+    };
+    runtime.registerPlugin(twitterPlugin);
 
     return clients;
 }

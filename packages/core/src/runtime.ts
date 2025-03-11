@@ -1483,6 +1483,36 @@ Text: ${attachment.text}
             actorsData,
         );
 
+        // Retrieve user rapport if message is from a user
+        let userRapportScore = 0;
+        let userRapportTier = getRapportTier(0);  // Default to neutral
+
+        if (actorsData && actorsData.length > 0 && actorsData[0]?.id) {
+            userRapportScore = await this.databaseAdapter.getUserRapport(actorsData[0].id, this.agentId) || 0;
+            userRapportTier = getRapportTier(userRapportScore);
+            elizaLogger.debug("Found user rapport for:", actorsData[0].id, "Score:", userRapportScore);
+        } else {
+            elizaLogger.debug("No valid actor data found for rapport calculation");
+        }
+
+
+
+        const getUserRapportDescription = (tier: RapportTier): string => {
+            if(tier === RapportTier.NEUTRAL){
+                return '';
+            }
+            else{
+                return tier;
+            }
+        };
+
+        const userRapportDescription = getUserRapportDescription(userRapportTier);
+        elizaLogger.debug("Building rapport context for user:", {
+            userId: message.userId,
+            score: userRapportScore,
+            tier: userRapportTier,
+            description: userRapportDescription,
+        });
         // if bio is a string, use it. if its an array, pick one at random
         let bio = this.character.bio || "";
         if (Array.isArray(bio)) {
@@ -1540,6 +1570,7 @@ Text: ${attachment.text}
             recentPostInteractions: formattedPostInteractions,
             // Raw memory[] array of interactions
             recentInteractionsData: recentInteractions,
+            recentUserConversations: recentUserConversations,
             // randomly pick one topic
             topic:
                 this.character.topics && this.character.topics.length > 0
